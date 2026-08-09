@@ -1,860 +1,483 @@
-/* ============================================================
-   Configuración del panel admin.
-   Pega aquí los datos de tu proyecto Supabase.
-   ============================================================ */
-const SUPABASE_URL = "https://edquyomwiiaawqslsisd.supabase.co";
-const SUPABASE_KEY = "sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf";
+/* Panel Mandala Sushi v3 */
+window.initAppPublic = initApp;
+window.PosAppInit = initApp;
+var SUPABASE_URL = "https://edquyomwiiaawqslsisd.supabase.co";
+var SUPABASE_KEY = "sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf";
+var API = SUPABASE_URL + "/rest/v1/orders";
+var HDR = { "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY };
+var SESSION = "sakuraAdmin";
+var BRAND = (window.PosApp&&window.PosApp.brandConfig)||{business:"Sakura Sushi Paseos Mid",marca:"sakura"};
+window.initAppPublic = null; // se asigna cuando initApp esta definido
+var $ = function(id){return document.getElementById(id);};
+var money = function(n){return "$"+Number(n||0).toLocaleString("es-MX");};
+var esc = function(s){return String(s||"").replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});};
+var fmtTime = function(iso){if(!iso)return"";var d=new Date(iso);return d.toLocaleDateString("es-MX",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});};
+var fmtHora = function(d){return d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});};
 
-/* ============================================================
-   Panel de pedidos de Sakura Sushi.
-   Lee pedidos desde Supabase (REST), los muestra en tiempo real
-   (polling) y permite cambiar su estado.
-   ============================================================ */
-(function () {
-  "use strict";
+var state = { orders:[], seen:new Set(), soundOn:true, onlyNew:false, showArch:false, activeTab:"restaurante", pollTimer:null, pCat:0, selectedOrderId:null, newOnlineCount:0 };
+var newOrder = null, cancelMode = {}, cobroState = {method:"efectivo",order:null};
+var STATUS = { nuevo:{label:"Nuevo",cls:"ob-nuevo"}, recibido:{label:"Recibido",cls:"ob-recibido"}, listo:{label:"Listo",cls:"ob-listo"}, entregado:{label:"Entregado",cls:"ob-entregado"}, cobrado:{label:"Cobrado",cls:"ob-cobrado"}, cancelado:{label:"Cancelado",cls:"ob-cancelado"}, archivado:{label:"Archivado",cls:"ob-cobrado"} };
+var FLOW = ["nuevo","recibido","listo","entregado"];
+var MENU = (window.PosApp&&window.PosApp.menuData)||[];
 
-  const API = SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/orders";
-  const HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": "Bearer " + SUPABASE_KEY
-  };
+/* Roles y permisos */
+var PERMISOS = {
+  admin:   { todo:1, descuentos:1, cancelar:1, turno:1, reportes:1, usuarios:1, productos:1, cobrar:1, imprimir:1, nuevoPedido:1, reabrir:1, archivar:1, cambiarEstado:1, gastos:1 },
+  cajero:  { cobrar:1, imprimir:1, nuevoPedido:1, reabrir:1, reportes:1, descuentos:1, gastos:1 },
+  cocina:  { verKDS:1, cambiarEstado:1 },
+  mesero:  { nuevoPedido:1, imprimir:1, descuentos:0, reabrir:0, archivar:0 }
+};
+var currentUser = null;
+var ROLES = ["admin","cajero","cocina","mesero"];
+function canDo(accion){ return currentUser && PERMISOS[currentUser.rol] && PERMISOS[currentUser.rol][accion]; }
+function isAdmin(){ return currentUser && currentUser.rol === "admin"; }
 
-  const SESSION = "sakuraAdmin";
+function toast(msg){var t=$("toast");t.textContent=msg;t.classList.remove("hidden");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.add("hidden")},3500);}
+function beep(){if(!state.soundOn)return;try{var ctx=beep._ctx||(beep._ctx=new(window.AudioContext||window.webkitAudioContext)());if(ctx.state==="suspended")ctx.resume();var o=ctx.createOscillator(),g=ctx.createGain();o.type="sine";o.frequency.value=880;g.gain.value=0.2;o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+0.35)}catch(e){}}
 
-  async function sha256(text) {
-    const enc = new TextEncoder().encode(text);
-    const buf = await crypto.subtle.digest("SHA-256", enc);
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+/* API */
+function apiGet(path){
+  var url = "https://edquyomwiiaawqslsisd.supabase.co/rest/v1/" + path;
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open("GET",url,true);
+    xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.timeout=8000;
+    xhr.onload=function(){if(xhr.status===200){resolve(JSON.parse(xhr.responseText))}else{reject(new Error("HTTP "+xhr.status))}};
+    xhr.onerror=function(){reject(new Error("Red"))};
+    xhr.ontimeout=function(){reject(new Error("Timeout"))};
+    xhr.send();
+  });
+}
+function apiPatch(id,data){
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open("PATCH",API+"?id=eq."+id,true);
+    xhr.setRequestHeader("Content-Type","application/json");
+    xhr.setRequestHeader("Prefer","return=minimal");
+    xhr.setRequestHeader("apikey",SUPABASE_KEY);
+    xhr.setRequestHeader("Authorization","Bearer "+SUPABASE_KEY);
+    xhr.timeout=8000;
+    xhr.onload=function(){if(xhr.status>=200&&xhr.status<300){resolve()}else{reject(new Error("HTTP "+xhr.status))}};
+    xhr.onerror=function(){reject(new Error("Red"))};
+    xhr.ontimeout=function(){reject(new Error("Timeout"))};
+    xhr.send(JSON.stringify(data));
+  });
+}
+function apiPost(data){
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open("POST",API,true);
+    xhr.setRequestHeader("Content-Type","application/json");
+    xhr.setRequestHeader("Prefer","return=minimal");
+    xhr.setRequestHeader("apikey",SUPABASE_KEY);
+    xhr.setRequestHeader("Authorization","Bearer "+SUPABASE_KEY);
+    xhr.timeout=8000;
+    xhr.onload=function(){if(xhr.status===201){resolve()}else{reject(new Error("HTTP "+xhr.status))}};
+    xhr.onerror=function(){reject(new Error("Red"))};
+    xhr.ontimeout=function(){reject(new Error("Timeout"))};
+    xhr.send(JSON.stringify(data));
+  });
+}
+function fetchOrders(){
+  var url = "https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders?select=*&marca=eq.mandala&order=created_at.desc&limit=200";
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open("GET",url,true);
+    xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.timeout=8000;
+    xhr.onload=function(){if(xhr.status===200){resolve(JSON.parse(xhr.responseText))}else{reject(new Error("HTTP "+xhr.status))}};
+    xhr.onerror=function(){reject(new Error("Red"))};
+    xhr.ontimeout=function(){reject(new Error("Timeout"))};
+    xhr.send();
+  });
+}
+function patchOrder(id,data){
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open("PATCH","https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders?id=eq."+id,true);
+    xhr.setRequestHeader("Content-Type","application/json");
+    xhr.setRequestHeader("Prefer","return=minimal");
+    xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.timeout=8000;
+    xhr.onload=function(){if(xhr.status>=200&&xhr.status<300){resolve()}else{reject(new Error("HTTP "+xhr.status))}};
+    xhr.onerror=function(){reject(new Error("Red"))};
+    xhr.ontimeout=function(){reject(new Error("Timeout"))};
+    xhr.send(JSON.stringify(data));
+  });
+}
+function saveApi(data){
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open("POST","https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders",true);
+    xhr.setRequestHeader("Content-Type","application/json");
+    xhr.setRequestHeader("Prefer","return=minimal");
+    xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+    xhr.timeout=8000;
+    xhr.onload=function(){if(xhr.status===201){resolve()}else{reject(new Error("HTTP "+xhr.status))}};
+    xhr.onerror=function(){reject(new Error("Red"))};
+    xhr.ontimeout=function(){reject(new Error("Timeout"))};
+    xhr.send(JSON.stringify(data));
+  });
+}
+
+/* Filtros */
+function ordersForTab(tab){
+  var l=state.orders;
+  if(tab==="restaurante")l=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.order_type==="restaurante"});
+  else if(tab==="whatsapp")l=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.order_type!=="restaurante"});
+  else if(tab==="cobradas")l=l.filter(function(o){return o.status==="cobrado"});
+  if(state.onlyNew)l=l.filter(function(o){return o.status==="nuevo"});
+  if(state.showArch){var a=state.orders.filter(function(o){return o.status==="archivado"||o.status==="cancelado"});l=l.concat(a)}
+  return l;
+}
+
+/* Cards */
+function cardHtml(o){
+  var s=STATUS[o.status]||STATUS.nuevo, open=state.seen.has("open_"+o.id), isCobrado=o.status==="cobrado", isCancel=cancelMode[o.id];
+  var items=(o.items||[]).map(function(i,ix){return'<div class="o-item"><span class="o-item-name"><span class="o-item-qty">'+(i.qty||0)+'</span>'+esc(i.name)+'</span><span class="o-item-total">'+money((i.price||0)*(i.qty||0))+'</span>'+(isCancel?'<button class="o-item-cancel" data-id="'+o.id+'" data-ix="'+ix+'">X</button>':'')+'</div>';}).join("");
+  var ti=o.order_type==="domicilio"?"🛵":o.order_type==="restaurante"?"🍽":"🛍";
+  var tl=o.order_type==="domicilio"?"A domicilio":o.order_type==="restaurante"?(o.address||"Mesa"):"Para llevar";
+  return'<div class="o-card'+(isCobrado?" cobrada":"")+(open?" open":"")+'" data-id="'+o.id+'">'+
+    '<div class="o-card-top" data-toggle="'+o.id+'"><div class="o-card-left"><span class="o-folio">#'+esc(o.folio)+'</span><span class="o-badge '+s.cls+'">'+s.label+'</span><span class="o-client-name">'+esc(o.name||"Cliente")+'</span></div><div class="o-time"><span>'+fmtTime(o.created_at)+'</span><span class="o-arrow">V</span></div></div>'+
+    '<div class="o-card-body"><div class="o-meta"><span class="o-meta-item"><span class="mi-icon">'+ti+'</span>'+tl+'</span>'+(o.phone?'<span class="o-meta-item">T '+esc(o.phone)+'</span>':'')+(o.order_type==="domicilio"&&o.address?'<span class="o-meta-item">L '+esc(o.address)+'</span>':'')+(o.payment?'<span class="o-meta-item">Q '+esc(o.payment)+'</span>':'')+'</div>'+(items?'<div class="o-items">'+items+'</div>':'')+(isCancel?'<div class="o-cancel-hint">Selecciona producto a cancelar</div>':'')+(o.notes?'<div class="o-notes">P '+esc(o.notes)+'</div>':'')+'</div></div>';
+}
+
+function renderCards(){
+  var list=ordersForTab(state.activeTab), grid=$("orders");
+  if(!list.length){var m={restaurante:"No hay pedidos en restaurante",whatsapp:"No hay pedidos de WhatsApp",cobradas:"No hay cuentas cobradas"};grid.innerHTML='<div class="empty-state"><span class="es-icon">'+(state.activeTab==="restaurante"?"🍽":state.activeTab==="whatsapp"?"📱":"💰")+'</span><span class="es-text">'+m[state.activeTab]+'</span></div>';return}
+  grid.innerHTML=list.map(cardHtml).join("");
+  /* Wire cards */
+  grid.querySelectorAll("[data-toggle]").forEach(function(el){el.addEventListener("click",function(){var card=el.closest(".o-card");if(!card)return;var id=card.dataset.id;card.classList.toggle("open");if(card.classList.contains("open"))state.seen.add("open_"+id);else state.seen.delete("open_"+id);selectOrder(id);});});
+  grid.querySelectorAll(".o-item-cancel").forEach(function(btn){btn.addEventListener("click",function(e){e.stopPropagation();var id=btn.dataset.id,ix=parseInt(btn.dataset.ix,10),o=state.orders.find(function(x){return x.id===id});if(!o||!o.items||isNaN(ix)||ix>=o.items.length)return;var rm=o.items[ix];o.items=o.items.filter(function(_,i){return i!==ix});patchOrder(id,{items:o.items,total:o.items.reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0)}).then(function(){printCancelTicket(o,rm);toast("X "+esc(rm.name)+" cancelado");refresh()});});});
+}
+
+/* Stats */
+function renderStats(){
+  var l=ordersForTab(state.activeTab), today=new Date().toDateString();
+  var ta=state.orders.filter(function(o){return o.created_at&&new Date(o.created_at).toDateString()===today});
+  var ti=ta.reduce(function(a,o){return a+(o.total||0)},0);
+  $("stNuevos").textContent=l.filter(function(o){return o.status==="nuevo"}).length;
+  $("stActivos").textContent=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.status!=="entregado"}).length;
+  $("stHoy").textContent=ta.length;$("stIngresos").textContent=money(ti);
+  $("stTicketProm").textContent=ta.length?"Ticket prom. "+money(Math.round(ti/ta.length)):"--";
+  var r=state.orders.filter(function(o){return o.order_type==="restaurante"&&o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;
+  var w=state.orders.filter(function(o){return o.order_type!=="restaurante"&&o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;
+  var c=state.orders.filter(function(o){return o.status==="cobrado"}).length;
+  $("badgeRest").textContent=r;$("badgeWsp").textContent=w;$("badgeCob").textContent=c;
+}
+
+/* Side Panel */
+function renderSidePanel(){
+  var panel=$("sidePanel"),id=state.selectedOrderId;
+  if(!id){panel.classList.add("hidden");return}
+  var o=state.orders.find(function(x){return x.id===id});if(!o){panel.classList.add("hidden");return}
+  var isCobrado=o.status==="cobrado",isCancel=cancelMode[id],s=STATUS[o.status]||STATUS.nuevo;
+  var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}"),disc=de.d||0,extra=de.e||0,idsc=de.items||{},mode=de.mode||"general";
+  $("spFolio").textContent="#"+o.folio;$("spBadge").textContent=s.label;$("spBadge").className="sp-badge "+s.cls;
+  $("spClient").innerHTML=esc(o.name||"Cliente")+' <button class="sp-btn-slim" onclick="PosEditName(\''+id+'\')">E</button>';
+  var flows=FLOW.filter(function(st){return st!==o.status}).map(function(st){var sd=STATUS[st];return'<button class="sp-btn" onclick="PosChangeStatus(\''+id+'\',\''+st+'\')">'+sd.label+'</button>';}).join("");
+  var acc = '';
+  if(isCobrado){
+    acc += '<button class="sp-btn sp-btn-primary" onclick="PosReabrir(\''+id+'\')">Reabrir</button>';
+    acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">Reimprimir</button>';
+  } else {
+    if(canDo("cobrar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosCobrar(\''+id+'\')">Cobrar</button>';
+    if(canDo("imprimir")) acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">Imprimir</button>';
+    if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOff(\''+id+'\')">Salir cancelar</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
+    if(canDo("cambiarEstado")) acc += flows;
+    if(canDo("archivar")) acc += '<button class="sp-btn" onclick="PosArchivar(\''+id+'\')">Archivar</button>';
   }
+  $("spActions").innerHTML=acc;
+  var spInputs=canDo("descuentos")?'<label>Descuento</label><div class="seg" style="margin-bottom:8px"><button class="seg-btn'+(mode==="general"?" on":"")+'" onclick="PosDiscMode(\''+id+'\',\'general\')">General</button><button class="seg-btn'+(mode==="producto"?" on":"")+'" onclick="PosDiscMode(\''+id+'\',\'producto\')">A producto</button></div>':'';
+  if(mode==="general")spInputs+='<div class="sp-inp-row"><input type="number" class="sp-inp-disc" value="'+(disc||'')+'" placeholder="% desc" min="0" max="100" onchange="PosUpdateDisc(\''+id+'\',this,1)"><input type="number" class="sp-inp-extra" value="'+(extra||'')+'" placeholder="+$ cargo" min="0" onchange="PosUpdateDisc(\''+id+'\',this,0)"></div>';
+  else {spInputs+='<div style="display:flex;flex-direction:column;gap:4px">'+(o.items||[]).map(function(it,ix){var idc=idsc[String(ix)]||{},t=idc.t||"%",v=idc.v||0;return'<div style="display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bg)"><span style="flex:1;font-weight:600">'+(it.qty||0)+'x '+esc(it.name)+'</span><input type="number" value="'+(v||'')+'" placeholder="0" min="0" onchange="PosItemDisc(\''+id+'\','+ix+',this)" style="width:48px;border:1px solid var(--border);border-radius:6px;padding:3px;font-size:11px;text-align:center"><select onchange="PosItemDiscType(\''+id+'\','+ix+',this)" style="width:36px;border:1px solid var(--border);border-radius:6px;padding:2px;font-size:10px;font-weight:700;background:#fff"><option value="%"'+(t==="%"?" selected":"")+'>%</option><option value="$"'+(t==="$"?" selected":"")+'>$</option></select></div>';}).join("")+'<div class="sp-inp-row" style="margin-top:6px"><input type="number" class="sp-inp-disc" value="'+(disc||'')+'" placeholder="% gral" min="0" max="100" onchange="PosUpdateDisc(\''+id+'\',this,1)"><input type="number" class="sp-inp-extra" value="'+(extra||'')+'" placeholder="+$ cargo" min="0" onchange="PosUpdateDisc(\''+id+'\',this,0)"></div></div>';}
+  $("spInputs").innerHTML=spInputs;
+  var subBruto=(o.items||[]).reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0),dp=0;
+  var subDesc=(o.items||[]).reduce(function(a,i,ix){var p=(i.price||0)*(i.qty||0),idc=idsc[String(ix)]||{},t=idc.t||"%",v=idc.v||0,d=0;if(t==="%")d=Math.round(p*v/100);else d=Math.min(p,v);dp+=d;return a+p-d;},0);
+  var discAmt=Math.round(subDesc*disc/100),calc=subDesc-discAmt+extra;
+  var tot='<div class="sp-total-row"><span>Subtotal</span><span>'+money(subBruto)+'</span></div>';
+  if(dp>0)tot+='<div class="sp-total-row"><span style="color:var(--red)">Desc. productos</span><span style="color:var(--red)">-'+money(dp)+'</span></div><div class="sp-total-row"><span>Sub. c/desc</span><span>'+money(subDesc)+'</span></div>';
+  tot+=(disc>0?'<div class="sp-total-row"><span style="color:var(--red)">Desc. gral '+disc+'%</span><span style="color:var(--red)">-'+money(discAmt)+'</span></div>':'')+(extra>0?'<div class="sp-total-row"><span>Cargo extra</span><span>'+money(extra)+'</span></div>':'')+'<div class="sp-total-final"><span>TOTAL</span><span>'+money(calc)+'</span></div>';
+  $("spTotals").innerHTML=tot;
+  $("spExtras").innerHTML='<div style="font-size:12px;margin-bottom:4px">P '+esc(o.notes||"Sin observaciones")+' <button class="sp-btn-slim" onclick="PosEditNotes(\''+id+'\')">E</button></div><div class="sp-items">'+(o.items||[]).map(function(i,ix){return'<div class="sp-item"><span class="sp-item-name">'+(i.qty||0)+'x '+esc(i.name)+'</span>'+(isCancel?'<button class="sp-btn-slim" onclick="PosCancelItem(\''+id+'\','+ix+')" style="color:var(--red)">X</button>':'')+'</div>';}).join("")+'</div>';
+  panel.classList.remove("hidden");
+}
 
-  const BRAND = (window.PosApp && window.PosApp.brandConfig) || {
-    business: "Sakura Sushi Paseos Mid",
-    address: "",
-    phoneDisplay: ""
-  };
-  const MENU = (window.PosApp && window.PosApp.menuData) || [];
+/* Global onclick functions */
+function selectOrder(id){state.selectedOrderId=state.selectedOrderId===id?null:id;render();}
+function switchTab(tab){state.activeTab=tab;state.selectedOrderId=null;$("sidePanel").classList.add("hidden");if(tab==="whatsapp"){state.newOnlineCount=0;document.title=BRAND.business};document.querySelectorAll(".tab-btn").forEach(function(b){b.classList.toggle("active",b.dataset.tab===tab)});render();}
+function render(){renderCards();renderSidePanel();renderStats();}
 
-  const STATUS = {
-    nuevo:      { label: "Nuevo",     cls: "s-nuevo" },
-    recibido:   { label: "Recibido",  cls: "s-recibido" },
-    listo:      { label: "Listo",     cls: "s-listo" },
-    entregado:  { label: "Entregado", cls: "s-entregado" },
-    cancelado:  { label: "Cancelado", cls: "s-cancelado" },
-    archivado:  { label: "Archivado", cls: "s-archivado" }
-  };
+function abrirCobro(o){
+  cobroState.order=o;cobroState.method="efectivo";
+  var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}"),disc=de.d||0,extra=de.e||0,idsc=de.items||{};
+  var sb=(o.items||[]).reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0),dp=0;
+  var sd=(o.items||[]).reduce(function(a,i,ix){var p=(i.price||0)*(i.qty||0),idc=idsc[String(ix)]||{},t=idc.t||"%",v=idc.v||0,d=0;if(t==="%")d=Math.round(p*v/100);else d=Math.min(p,v);dp+=d;return a+p-d;},0);
+  var tf=sd-Math.round(sd*disc/100)+extra;
+  $("cobroInfo").innerHTML='<div class="cobro-total">'+money(tf)+'</div>'+(dp>0?'<div style="font-size:11px;color:var(--red)">Desc. prod: -'+money(dp)+'</div>':'')+(disc>0?'<div style="font-size:11px;color:var(--red)">Desc. gral '+disc+'%: -'+money(Math.round(sd*disc/100))+'</div>':'')+(extra>0?'<div style="font-size:11px;color:var(--green)">Cargo: +'+money(extra)+'</div>':'')+'<div style="font-size:12px;color:var(--muted);margin-top:4px">Pedido #'+esc(o.folio)+' '+esc(o.name)+'</div>';
+  $("cobroModal").classList.remove("hidden");
+  document.querySelectorAll(".pay-btn").forEach(function(x){x.classList.remove("on")});
+  var db=document.querySelector('.pay-btn[data-m="efectivo"]');if(db)db.classList.add("on");
+  cobroFields();
+}
+function cobroFields(){
+  var m=cobroState.method,o=cobroState.order;if(!o)return;
+  var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}"),disc=de.d||0,extra=de.e||0,idsc=de.items||{};
+  var sd=(o.items||[]).reduce(function(a,i,ix){var p=(i.price||0)*(i.qty||0),idc=idsc[String(ix)]||{},t=idc.t||"%",v=idc.v||0,d=0;if(t==="%")d=Math.round(p*v/100);else d=Math.min(p,v);return a+p-d;},0);
+  var total=sd-Math.round(sd*disc/100)+extra,h="";
+  if(m==="efectivo"){h+='<div class="frow"><label>Monto recibido</label><input type="number" id="cobroMonto" value="'+total+'" min="0" oninput="updateCambio()"></div><div id="cobroCambio" style="text-align:center;font-size:15px;font-weight:700;margin:8px 0;color:var(--green)">Cambio: $0</div><div class="frow"><label>Propina</label><div style="display:flex;gap:4px;margin-bottom:6px"><button class="btn-sm" onclick="setPropina('+Math.round(total*0.10)+')">10% ('+money(Math.round(total*0.10))+')</button><button class="btn-sm" onclick="setPropina('+Math.round(total*0.15)+')">15% ('+money(Math.round(total*0.15))+')</button><button class="btn-sm" onclick="setPropina('+Math.round(total*0.20)+')">20% ('+money(Math.round(total*0.20))+')</button></div><input type="number" id="cobroPropina" value="0" min="0" oninput="updateCambio()"></div>';}
+  else if(m==="tarjeta"||m==="transferencia"){h+='<div class="frow"><label>Referencia</label><input type="text" id="cobroRef" placeholder="Ej. 4521"></div><div class="frow"><label>Propina</label><div style="display:flex;gap:4px;margin-bottom:6px"><button class="btn-sm" onclick="setPropina('+Math.round(total*0.10)+')">10% ('+money(Math.round(total*0.10))+')</button><button class="btn-sm" onclick="setPropina('+Math.round(total*0.15)+')">15% ('+money(Math.round(total*0.15))+')</button><button class="btn-sm" onclick="setPropina('+Math.round(total*0.20)+')">20% ('+money(Math.round(total*0.20))+')</button></div><input type="number" id="cobroPropina" value="0" min="0"></div>';}
+  else{h+='<div class="frow"><label>Referencia</label><input type="text" id="cobroRef" placeholder="Ej. Comision 30%"></div>';}
+  $("cobroFields").innerHTML=h;
+}
+function setPropina(val){var el=document.getElementById("cobroPropina");if(el){el.value=val;el.dispatchEvent(new Event("input"));updateCambio()};}
+function totalEfec(o){
+  var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}"),disc=de.d||0,extra=de.e||0,idsc=de.items||{};
+  var sd=(o.items||[]).reduce(function(a,i,ix){var p=(i.price||0)*(i.qty||0),idc=idsc[String(ix)]||{},t=idc.t||"%",v=idc.v||0,d=0;if(t==="%")d=Math.round(p*v/100);else d=Math.min(p,v);return a+p-d;},0);
+  return sd-Math.round(sd*disc/100)+extra;
+}
+window.updateCambio=function(){
+  var monto=parseInt((document.getElementById("cobroMonto")||{}).value,10)||0;
+  var propina=parseInt((document.getElementById("cobroPropina")||{}).value,10)||0;
+  var total=totalEfec(cobroState.order),cambio=monto-total-propina;
+  var el=document.getElementById("cobroCambio");if(el)el.textContent=cambio>=0?"Cambio: "+money(cambio):"Faltan: "+money(-cambio);
+};
+function confirmarCobro(){
+  var o=cobroState.order;if(!o)return;var m=cobroState.method;
+  var ml={efectivo:"Efectivo",tarjeta:"Tarjeta",transferencia:"Transferencia",didi:"DIDI",uber:"Uber",rappi:"Rappi"}[m]||m;
+  var prop=parseInt((document.getElementById("cobroPropina")||{}).value,10)||0,det="",total=totalEfec(o);
+  if(m==="efectivo"){var rec=parseInt((document.getElementById("cobroMonto")||{}).value,10)||0,cambio=rec-total-prop;if(cambio<0){toast("Monto no cubre");return}det="Recibido:"+rec+" | Cambio:"+cambio+(prop?" | Propina:"+prop:"");}
+  else{var ref=(document.getElementById("cobroRef")||{}).value||"";det=(ref?"Ref:"+ref+" | ":"")+(prop?"Propina:"+prop:"");}
+  var nota=(o.notes||"");if(nota)nota+=" | ";nota+="PAGO:"+ml+" | "+det;
+  patchOrder(o.id,{payment:ml,notes:nota,status:"cobrado"}).then(function(){$("cobroModal").classList.add("hidden");toast("Cuenta #"+o.folio+" cobrada");state.activeTab="cobradas";refresh()});
+}
 
-  const FLOW = ["nuevo", "recibido", "listo", "entregado"];
+/* Impresion */
+var PRINT_HOST = window.location.hostname;
 
-  let state = {
-    orders: [],
-    seen: new Set(),
-    soundOn: true,
-    onlyNew: false,
-    showArch: false,
-    pollTimer: null,
-    autoPrint: true,
-    pCat: 0,
-    turno: null
-  };
+function printTicket(o){
+  var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}");
+  var items = (o.items||[]).map(function(it){
+    var prep = localStorage.getItem("prodPrep_"+it.key) || "";
+    return {name:it.name,qty:it.qty,price:it.price,desc:it.desc,comment:it.comment||"",prep:prep};
+  });
+  var body=JSON.stringify({marca:BRAND.marca,folio:o.folio,items:items,total:o.total,name:o.name,phone:o.phone,order_type:o.order_type,address:o.address,payment:o.payment,notes:o.notes,discount:de.d||0,extra:de.e||0});
+  var xhr=new XMLHttpRequest();
+  xhr.open("POST","http://"+PRINT_HOST+":5100/print",true);
+  xhr.setRequestHeader("Content-Type","application/json");
+  xhr.timeout=5000;
+  xhr.onload=function(){if(xhr.status===200){var d=JSON.parse(xhr.responseText);if(d.ok)toast("Impreso");else toast("Error")}else{toast("Error")}};
+  xhr.onerror=function(){toast("Servidor impresion no disponible")};
+  xhr.ontimeout=function(){toast("Timeout impresion")};
+  xhr.send(body);
+}
+function printCancelTicket(order,item){
+  var xhr=new XMLHttpRequest();
+  xhr.open("POST","http://"+PRINT_HOST+":5100/cancel",true);
+  xhr.setRequestHeader("Content-Type","application/json");
+  xhr.timeout=3000;
+  xhr.send(JSON.stringify({marca:BRAND.marca,folio:order.folio,item:item,name:order.name,order_type:order.order_type,address:order.address}));
+}
 
-  let newOrder = null;
+/* Reimpresion */
+var rpState={order:null,selected:{}};
+function abrirReimpresion(o){rpState.order=o;rpState.selected={};(o.items||[]).forEach(function(_,i){rpState.selected[i]=true});$("reprintItems").innerHTML=(o.items||[]).map(function(it,i){return'<label class="chk" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" data-ri="'+i+'"'+(rpState.selected[i]?' checked':'')+' onchange="rpState.selected[\''+i+'\']=this.checked"><span style="flex:1;font-weight:700;font-size:13px">'+(it.qty||0)+'x '+esc(it.name)+'</span><span style="font-weight:700;color:var(--primary)">'+money((it.price||0)*(it.qty||0))+'</span></label>';}).join("");$("reprintModal").classList.remove("hidden");}
+function confirmarReimpresion(){var o=rpState.order;if(!o)return;var its=(o.items||[]).filter(function(_,i){return rpState.selected[i]});if(!its.length){toast("Selecciona al menos un producto");return}var sub=its.reduce(function(a,it){return a+(it.price||0)*(it.qty||0)},0);printTicket(Object.assign({},o,{items:its,total:sub}));$("reprintModal").classList.add("hidden");}
 
-  const $ = id => document.getElementById(id);
+/* Nuevo pedido */
+function nextFolio(){var max=0;state.orders.forEach(function(o){var n=parseInt(o.folio,10);if(n>max)max=n});var l=parseInt(localStorage.getItem("sakuraAdminFolio")||"0",10);if(l>max)max=l;var n=max+1;localStorage.setItem("sakuraAdminFolio",String(n));return("000"+String(n)).slice(-4);}
+function catItems(ci){return(MENU[ci]&&MENU[ci].items)||[];}
+function priceOf(it){if(typeof it.price==="number")return money(it.price);var vs=it.variants||[];return"Desde "+money(Math.min.apply(null,vs.map(function(v){return v.price})));}
+function renderTabs(){$("noTabs").innerHTML=MENU.map(function(c,i){return'<button class="tab'+(i===state.pCat?" on":"")+'" data-i="'+i+'">'+esc(c.name)+'</button>';}).join("");}
+function renderGrid(){var q=($("noSearch").value||"").toLowerCase().trim(),m=[];MENU.forEach(function(c,ci){(c.items||[]).forEach(function(it,ii){if(q){if((it.name+" "+(it.desc||"")+" "+c.name).toLowerCase().indexOf(q)<0)return}else if(state.pCat>=0&&ci!==state.pCat)return;m.push({ci:ci,ii:ii,it:it})})});$("noGrid").innerHTML=m.length?m.map(function(x){return'<button class="p-btn" data-ci="'+x.ci+'" data-ii="'+x.ii+'"><span>'+esc(x.it.name)+'</span><em>'+priceOf(x.it)+'</em></button>';}).join(""):'<div class="empty p-empty">Sin resultados</div>';}
+function openVariants(ci,ii){var it=catItems(ci)[ii],vs=it.variants||[];$("noVariantList").innerHTML='<div class="v-title">'+esc(it.name)+'</div>'+vs.map(function(v,vi){return'<button class="v-btn" data-v="'+vi+'"><span>'+esc(v.label)+'</span><em>'+money(v.price)+'</em></button>';}).join("");$("noVariant").dataset.ci=ci;$("noVariant").dataset.ii=ii;$("noVariant").classList.remove("hidden");}
+function addToCart(ci,ii,vr){var it=catItems(ci)[ii],nm=it.name+(vr?" "+vr.label:""),pr=vr?vr.price:it.price,key=ci+":"+ii+(vr?":"+vr.label:"");var f=newOrder.cart.find(function(c){return c.key===key});if(f){f.qty+=1}else{newOrder.cart.push({key:key,name:nm,qty:1,price:pr||0,desc:it.desc||"",comment:"",cortesia:false})}renderCart();}
+function setItemComment(ix){var c=newOrder.cart[ix];if(!c)return;var v=prompt("Comentario para "+c.name+":",c.comment||"");if(v!==null){c.comment=v.trim();renderCart()}}
+function toggleCortesia(ix){var c=newOrder.cart[ix];if(!c)return;c.cortesia=!c.cortesia;renderCart()}
+function renderCart(){var el=$("noItems");if(!newOrder.cart.length){el.innerHTML='<div class="empty">Agrega platillos</div>';return}el.innerHTML=newOrder.cart.map(function(c,ix){var p=c.cortesia?0:c.price*c.qty;return'<div class="no-item"><span class="no-name">'+esc(c.name)+(c.comment?'<br><small style="color:var(--primary);font-weight:600">'+esc(c.comment)+'</small>':'')+(c.cortesia?'<br><small style="color:var(--green);font-weight:800">CORTESIA</small>':'')+'</span><button class="no-comment" data-ix="'+ix+'" title="Comentario" style="border:none;background:var(--primary-light);color:var(--primary);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;margin-right:2px">E</button><button class="no-cortesia" data-ix="'+ix+'" title="Cortesia" style="border:none;background:'+(c.cortesia?'var(--green)':'var(--bg)')+';color:'+(c.cortesia?'#fff':'var(--muted)')+';border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;margin-right:4px">G</button><div class="no-qty"><button data-ix="'+ix+'" data-d="-1">-</button><b>'+c.qty+'</b><button data-ix="'+ix+'" data-d="1">+</button></div><span class="no-line">'+money(p)+'</span><button class="no-del" data-ix="'+ix+'" data-del="1">X</button></div>';}).join("");$("noTotal").textContent=money(newOrder.cart.reduce(function(a,c){return c.cortesia?a:a+c.price*c.qty},0));}
+function setSegType(t){newOrder.type=t;document.querySelectorAll("#segType .seg-btn").forEach(function(b){b.classList.toggle("on",b.dataset.t===t)});$("rowMesa").classList.toggle("hidden",t!=="restaurante");$("rowPhone").classList.toggle("hidden",t==="restaurante");$("rowAddr").classList.toggle("hidden",t!=="domicilio");}
+function resetNewOrder(){newOrder={type:"restaurante",cart:[]};$("noMesa").value=1;$("noName").value="";$("noPhone").value="";$("noAddr").value="";$("noPay").value="Efectivo";$("noNotes").value="";$("noSearch").value="";state.pCat=0;renderTabs();renderGrid();renderCart();setSegType("restaurante");}
 
-  /* ---------- Utilidades ---------- */
-  const money = n => "$" + Number(n || 0).toLocaleString("es-MX");
-  const fmtTime = iso => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return d.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit" }) + " " +
-      d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
-  };
-  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[c]));
-
-  function toast(msg) {
-    const t = $("toast");
-    t.textContent = msg;
-    t.classList.remove("hidden");
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => t.classList.add("hidden"), 3500);
-  }
-
-  function beep() {
-    try {
-      const ctx = beep._ctx || (beep._ctx = new (window.AudioContext || window.webkitAudioContext)());
-      if (ctx.state === "suspended") ctx.resume();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.value = 880;
-      g.gain.value = 0.25;
-      o.connect(g); g.connect(ctx.destination);
-      o.start();
-      o.stop(ctx.currentTime + 0.4);
-    } catch (e) { /* sin audio */ }
-  }
-
-  function notify(title, body) {
-    try {
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(title, { body, icon: "../logo.png" });
-      }
-    } catch (e) { /* sin notificaciones */ }
-  }
-
-  /* ---------- Ticket de impresión ---------- */
-  function ticketHtml(o) {
-    const items = (o.items || []).map(i =>
-      '<div class="t-row"><span>' + i.qty + " x " + esc(i.name) + "</span><span>" +
-      money(i.price * i.qty) + "</span></div>" +
-      (i.desc ? '<div class="t-desc">' + esc(i.desc) + "</div>" : "")
-    ).join("");
-
-    const type = o.order_type === "restaurante"
-      ? "RESTAURANTE · " + (o.address || "Mesa")
-      : o.order_type === "domicilio"
-        ? "A DOMICILIO"
-        : "PARA LLEVAR";
-
-    return '<div class="ticket">' +
-      '<div class="t-big">' + esc(BRAND.business) + "</div>" +
-      (BRAND.address ? '<div class="t-center">' + esc(BRAND.address) + "</div>" : "") +
-      (BRAND.phoneDisplay ? '<div class="t-center">Tel: ' + esc(BRAND.phoneDisplay) + "</div>" : "") +
-      '<div class="t-sep"></div>' +
-      '<div class="t-center t-big">PEDIDO #' + esc(o.folio) + "</div>" +
-      '<div class="t-center">' + fmtTime(o.created_at || o.date) + "</div>" +
-      '<div class="t-center"><b>' + esc(type) + "</b></div>" +
-      (o.name ? '<div class="t-row"><span>Cliente</span><span>' + esc(o.name) + "</span></div>" : "") +
-      (o.phone ? '<div class="t-row"><span>Tel</span><span>' + esc(o.phone) + "</span></div>" : "") +
-      (o.order_type === "domicilio" && o.address ? '<div class="t-row"><span>Dirección</span><span>' + esc(o.address) + "</span></div>" : "") +
-      (o.notes ? '<div class="t-row"><span>Notas</span><span>' + esc(o.notes) + "</span></div>" : "") +
-      '<div class="t-sep"></div>' + items +
-      '<div class="t-sep"></div>' +
-      '<div class="t-total"><span>TOTAL</span><span>' + money(o.total) + "</span></div>" +
-      '<div class="t-center">Pago: ' + esc(o.payment) + "</div>" +
-      '<div class="t-sep"></div>' +
-      '<div class="t-foot">¡Gracias por su compra!</div>' +
-    "</div>";
-  }
-
-  function printTicket(o) {
-    $("printArea").innerHTML = ticketHtml(o);
-    window.print();
-  }
-
-  /* ---------- Nuevo pedido (restaurante / llevar / domicilio) ---------- */
-  function nextFolio() {
-    let max = 0;
-    state.orders.forEach(o => {
-      const n = parseInt(o.folio, 10);
-      if (n > max) max = n;
+function saveNewOrder(){
+  if(!newOrder||!newOrder.cart.length){toast("Agrega al menos un platillo");return}
+  var t=newOrder.type,mesa=parseInt($("noMesa").value||"1",10),name=($("noName").value||"").trim(),addr="";
+  if(t==="restaurante"){addr="Mesa "+(mesa||1);if(!name)name=addr}else if(t==="domicilio"){addr=($("noAddr").value||"").trim()}
+  var phone=t==="restaurante"?"":($("noPhone").value||"").trim();
+  var rec={folio:nextFolio(),name:name||"Cliente",phone:phone,order_type:t,address:addr,payment:$("noPay").value,notes:($("noNotes").value||"").trim(),salsas:"",palitos:"No",marca:BRAND.marca||"",items:newOrder.cart.map(function(c){return{key:c.key,name:c.name,qty:c.qty,price:c.cortesia?0:c.price,desc:c.desc,comment:c.comment||"",cortesia:c.cortesia||false}}),total:newOrder.cart.reduce(function(a,c){return c.cortesia?a:a+c.price*c.qty},0)};
+  saveApi(rec).then(function(){$("newOrderModal").classList.add("hidden");toast("Pedido #"+rec.folio+" enviado");printTicket(rec);refresh()
+    // Decrementar inventario
+    newOrder.cart.forEach(function(c){
+      var curr = parseInt(localStorage.getItem("prodStock_"+c.key)) || 0;
+      if(curr > 0) localStorage.setItem("prodStock_"+c.key, String(curr - c.qty));
     });
-    const local = parseInt(localStorage.getItem("sakuraAdminFolio") || "0", 10);
-    if (local > max) max = local;
-    const next = max + 1;
-    localStorage.setItem("sakuraAdminFolio", String(next));
-    return ("000" + String(next)).slice(-4);
-  }
+  }).catch(function(){toast("Error al guardar")});
+}
 
-  function catItems(ci) {
-    return (MENU[ci] && MENU[ci].items) || [];
-  }
+/* Side Panel Actions */
+function PosCobrar(id){var o=state.orders.find(function(x){return x.id===id});if(o)abrirCobro(o);}
+function PosReabrir(id){patchOrder(id,{status:"nuevo"}).then(refresh);}
+function PosArchivar(id){patchOrder(id,{status:"archivado"}).then(refresh);}
+function PosReimprimir(id){var o=state.orders.find(function(x){return x.id===id});if(o)abrirReimpresion(o);}
+function PosCancelModeOn(id){cancelMode[id]=true;render();}
+function PosCancelModeOff(id){cancelMode[id]=false;render();}
+function PosChangeStatus(id,st){patchOrder(id,{status:st}).then(refresh);}
+function PosEditName(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Nombre:",o.name||"");if(v!==null){patchOrder(id,{name:v}).then(refresh);}}
+function PosEditNotes(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Observaciones:",o.notes||"");if(v!==null){patchOrder(id,{notes:v}).then(refresh);}}
+function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id});if(!o||!o.items||ix>=o.items.length)return;var rm=o.items[ix];o.items=o.items.filter(function(_,i){return i!==ix});patchOrder(id,{items:o.items}).then(function(){printCancelTicket(o,rm);toast("X "+esc(rm.name)+" cancelado");refresh()});}
+function PosUpdateDisc(id,inp,isDisc){
+  var val=isDisc?Math.min(100,Math.max(0,parseInt(inp.value,10)||0)):Math.max(0,parseInt(inp.value,10)||0);
+  var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");if(isDisc)de.d=val;else de.e=val;
+  localStorage.setItem("orderExtra_"+id,JSON.stringify(de));render();
+}
+function PosDiscMode(id,mode){var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");de.mode=mode;localStorage.setItem("orderExtra_"+id,JSON.stringify(de));render();}
+function PosItemDisc(id,ix,inp){var val=Math.max(0,parseInt(inp.value,10)||0);var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");if(!de.items)de.items={};if(!de.items[ix])de.items[ix]={};de.items[ix].v=val;localStorage.setItem("orderExtra_"+id,JSON.stringify(de));render();}
+function PosItemDiscType(id,ix,sel){var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");if(!de.items)de.items={};if(!de.items[ix])de.items[ix]={};de.items[ix].t=sel.value;localStorage.setItem("orderExtra_"+id,JSON.stringify(de));render();}
 
-  function priceOf(item) {
-    if (typeof item.price === "number") return money(item.price);
-    const vs = item.variants || [];
-    const lo = Math.min.apply(null, vs.map(v => v.price));
-    return "Desde " + money(lo);
-  }
-
-  function renderTabs() {
-    $("noTabs").innerHTML = MENU.map((cat, i) =>
-      '<button class="tab' + (i === state.pCat ? " on" : "") + '" data-i="' + i + '">' +
-      esc(cat.name) + "</button>"
-    ).join("");
-  }
-
-  function renderGrid() {
-    const q = ($("noSearch").value || "").toLowerCase().trim();
-    const matches = [];
-    MENU.forEach((cat, ci) => {
-      (cat.items || []).forEach((it, ii) => {
-        if (q) {
-          if ((it.name + " " + (it.desc || "") + " " + cat.name).toLowerCase().indexOf(q) < 0) return;
-        } else if (state.pCat >= 0 && ci !== state.pCat) {
-          return;
-        }
-        matches.push({ ci, ii, it });
-      });
-    });
-    $("noGrid").innerHTML = matches.length
-      ? matches.map(m =>
-          '<button class="p-btn" data-ci="' + m.ci + '" data-ii="' + m.ii + '">' +
-          "<span>" + esc(m.it.name) + "</span><em>" + priceOf(m.it) + "</em></button>"
-        ).join("")
-      : '<div class="empty p-empty">Sin resultados</div>';
-  }
-
-  function openVariants(ci, ii) {
-    const it = catItems(ci)[ii];
-    const vs = it.variants || [];
-    $("noVariantList").innerHTML =
-      '<div class="v-title">' + esc(it.name) + "</div>" +
-      vs.map((v, vi) =>
-        '<button class="v-btn" data-v="' + vi + '"><span>' + esc(v.label) + "</span><em>" +
-        money(v.price) + "</em></button>"
-      ).join("");
-    $("noVariant").dataset.ci = ci;
-    $("noVariant").dataset.ii = ii;
-    $("noVariant").classList.remove("hidden");
-  }
-
-  function addToCart(ci, ii, variant) {
-    const it = catItems(ci)[ii];
-    const name = it.name + (variant ? " · " + variant.label : "");
-    const price = variant ? variant.price : it.price;
-    const key = ci + ":" + ii + (variant ? ":" + variant.label : "");
-    const found = newOrder.cart.find(c => c.key === key);
-    if (found) {
-      found.qty += 1;
-    } else {
-      newOrder.cart.push({ key, name, qty: 1, price: price || 0, desc: it.desc || "" });
-    }
-    renderCart();
-  }
-
-  function renderCart() {
-    const el = $("noItems");
-    if (!newOrder.cart.length) {
-      el.innerHTML = '<div class="empty">Aún no agregas platillos.</div>';
-    } else {
-      el.innerHTML = newOrder.cart.map((c, ix) =>
-        '<div class="no-item">' +
-          '<span class="no-name">' + esc(c.name) + "</span>" +
-          '<div class="no-qty"><button data-ix="' + ix + '" data-d="-1">−</button><b>' + c.qty + "</b>" +
-          '<button data-ix="' + ix + '" data-d="1">+</button></div>' +
-          '<span class="no-line">' + money(c.price * c.qty) + "</span>" +
-          '<button class="no-del" data-ix="' + ix + '" data-del="1">✕</button>' +
-        "</div>"
-      ).join("");
-    }
-    const total = newOrder.cart.reduce((a, c) => a + c.price * c.qty, 0);
-    $("noTotal").textContent = money(total);
-  }
-
-  function setSegType(t) {
-    newOrder.type = t;
-    document.querySelectorAll("#segType .seg-btn").forEach(b => b.classList.toggle("on", b.dataset.t === t));
-    $("rowMesa").classList.toggle("hidden", t !== "restaurante");
-    $("rowPhone").classList.toggle("hidden", t === "restaurante");
-    $("rowAddr").classList.toggle("hidden", t !== "domicilio");
-  }
-
-  function resetNewOrder() {
-    newOrder = { type: "restaurante", cart: [] };
-    $("noMesa").value = 1;
-    $("noName").value = "";
-    $("noPhone").value = "";
-    $("noAddr").value = "";
-    $("noPay").value = "Efectivo";
-    $("noNotes").value = "";
-    $("noSearch").value = "";
-    state.pCat = 0;
-    renderTabs();
-    renderGrid();
-    renderCart();
-    setSegType("restaurante");
-  }
-
-  function closeNewOrder() {
-    $("newOrderModal").classList.add("hidden");
-  }
-
-  async function saveNewOrder() {
-    if (!newOrder || !newOrder.cart.length) {
-      toast("Agrega al menos un platillo");
-      return;
-    }
-    const type = newOrder.type;
-    const mesa = parseInt($("noMesa").value || "1", 10);
-    let name = ($("noName").value || "").trim();
-    let address = "";
-    if (type === "restaurante") {
-      address = "Mesa " + (mesa || 1);
-      if (!name) name = address;
-    } else if (type === "domicilio") {
-      address = ($("noAddr").value || "").trim();
-    }
-    const phone = type === "restaurante" ? "" : ($("noPhone").value || "").trim();
-    const record = {
-      folio: nextFolio(),
-      name: name || "Cliente",
-      phone,
-      order_type: type,
-      address,
-      payment: $("noPay").value,
-      notes: ($("noNotes").value || "").trim(),
-      salsas: "",
-      palitos: "No",
-      marca: (BRAND.marca || ""),
-      items: newOrder.cart.map(c => ({
-        key: c.key,
-        name: c.name,
-        qty: c.qty,
-        price: c.price,
-        desc: c.desc
-      })),
-      total: newOrder.cart.reduce((a, c) => a + c.price * c.qty, 0)
-    };
-    try {
-      const r = await fetch(API, {
-        method: "POST",
-        headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS),
-        body: JSON.stringify(record)
-      });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      closeNewOrder();
-      toast("Pedido #" + record.folio + " enviado a cocina");
-      refresh();
-    } catch (e) {
-      toast("Error al guardar el pedido");
-    }
-  }
-
-  /* ---------- API ---------- */
-  async function fetchOrders() {
-    if (!SUPABASE_URL || !SUPABASE_KEY) return [];
-    const q = API + "?select=*&marca=eq." + encodeURIComponent(BRAND.marca || "") + "&order=created_at.desc&limit=200";
-    const r = await fetch(q, { headers: HEADERS });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    return r.json();
-  }
-
-  async function setStatus(id, status) {
-    const r = await fetch(API + "?id=eq." + id, {
-      method: "PATCH",
-      headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS),
-      body: JSON.stringify({ status })
-    });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-  }
-
-  /* ---------- Render ---------- */
-  function statusBadge(s) {
-    const d = STATUS[s] || STATUS.nuevo;
-    return '<span class="st-badge ' + d.cls + '">' + d.label + "</span>";
-  }
-
-  function cardHtml(o) {
-    const items = (o.items || []).map(i =>
-      '<div class="o-item"><span>' + esc(i.name) + "</span><span class='x" + i.qty + "'>" +
-      i.qty + " × " + money(i.price * i.qty) + "</span></div>"
-    ).join("");
-
-    const notes = (o.notes || o.salsas)
-      ? '<div class="o-notes">' +
-        (o.notes ? "<div>📝 " + esc(o.notes) + "</div>" : "") +
-        (o.salsas ? "<div>🥫 " + esc(o.salsas) + "</div>" : "") +
-        "</div>"
-      : "";
-
-    const flowBtns = FLOW.map(s => {
-      const d = STATUS[s];
-      return '<button class="fbtn' + (o.status === s ? " on" : "") + '" data-id="' + o.id + '" data-s="' + s + '">' +
-        d.label + "</button>";
-    }).join("");
-
-    const typeLabel = o.order_type === "domicilio"
-      ? "🛵 A domicilio · "
-      : o.order_type === "restaurante"
-        ? "🍽 Restaurante · "
-        : "🛍️ Para llevar · ";
-    const addrIcon = o.order_type === "domicilio" ? "📍" : "🍽";
-
-    return '<div class="card' + (o.status === "nuevo" ? " card-new" : "") + '" data-id="' + o.id + '">' +
-      '<div class="c-top">' +
-        '<div class="c-left"><span class="c-folio">#' + esc(o.folio) + "</span>" + statusBadge(o.status) + "</div>" +
-        '<span class="c-time">' + fmtTime(o.created_at) + "</span>" +
-      "</div>" +
-      '<div class="c-name">' + esc(o.name) + ' <span class="c-phone">📞 ' + esc(o.phone) + "</span></div>" +
-      '<div class="c-meta">' + typeLabel + esc(o.payment) + "</div>" +
-      ((o.order_type === "domicilio" || o.order_type === "restaurante") && o.address
-        ? '<div class="c-addr">' + addrIcon + " " + esc(o.address) + "</div>" : "") +
-      '<div class="o-items">' + items + "</div>" +
-      notes +
-      '<div class="c-total">Total <b>' + money(o.total) + "</b></div>" +
-      '<div class="c-actions">' + flowBtns +
-        '<button class="fbtn print" data-id="' + o.id + '" data-act="print">🖨</button>' +
-        '<button class="fbtn cobro" data-id="' + o.id + '" data-act="cobro">💵 Cobrar</button>' +
-        '<button class="fbtn archive" data-id="' + o.id + '" data-s="archivado">🗂</button>' +
-      "</div>" +
-    "</div>";
-  }
-
-  function render() {
-    const list = $("orders");
-    const orders = state.orders
-      .filter(o => state.onlyNew ? o.status === "nuevo" : true)
-      .filter(o => state.showArch ? true : o.status !== "archivado");
-
-    if (!orders.length) {
-      list.innerHTML = '<div class="empty">📭 No hay pedidos.</div>';
-    } else {
-      list.innerHTML = orders.map(cardHtml).join("");
-    }
-  }
-
-  function renderStats() {
-    const today = new Date().toDateString();
-    const todayOrders = state.orders.filter(o => {
-      if (!o.created_at) return false;
-      return new Date(o.created_at).toDateString() === today;
-    });
-    $("stNuevos").textContent = state.orders.filter(o => o.status === "nuevo").length;
-    $("stHoy").textContent = todayOrders.length;
-    $("stIngresos").textContent = money(todayOrders.reduce((a, o) => a + (o.total || 0), 0));
-  }
-
-  /* ---------- Ciclo ---------- */
-  async function refresh() {
-    try {
-      const orders = await fetchOrders();
-      const before = state.orders.length;
-      state.orders = orders;
-      const isFirst = state.seen.size === 0;
-      orders.forEach(o => {
-        if (!state.seen.has(o.id)) {
-          state.seen.add(o.id);
-          if (!isFirst && o.status === "nuevo") {
-            if (state.soundOn) beep();
-            notify("Nuevo pedido #" + o.folio, (o.name || "") + " · " + money(o.total));
-            if (state.autoPrint) printTicket(o);
-          }
-        }
-      });
-      $("refreshNote").textContent = "Actualizado " + new Date().toLocaleTimeString("es-MX");
-      renderStats();
-      render();
-    } catch (e) {
-      $("refreshNote").textContent = "Error de conexión";
-      if (state.seen.size === 0) {
-        $("orders").innerHTML = '<div class="empty">No se pudo conectar a Supabase.<br>Revisa la configuración en admin/admin.js.</div>';
-      }
-    }
-  }
-
-  function start() {
-    clearInterval(state.pollTimer);
-    state.pollTimer = setInterval(refresh, 4000);
-  }
-
-  /* ---------- CSV ---------- */
-  function downloadCsv() {
-    const escCsv = v => "\"" + String(v == null ? "" : v).replace(/"/g, "\"\"") + "\"";
-    const rows = [["folio", "fecha", "estado", "nombre", "telefono", "tipo", "direccion", "pago", "items", "total"]];
-    state.orders.forEach(o => rows.push([
-      o.folio, o.created_at, o.status, o.name, o.phone, o.order_type, o.address, o.payment,
-      (o.items || []).map(i => i.qty + " x " + i.name).join(" | "), o.total
-    ]));
-    const blob = new Blob(["\ufeff" + rows.map(r => r.map(escCsv).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "sakura-pedidos.csv";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  }
-
-  /* ---------- Eventos ---------- */
-  function wire() {
-    document.getElementById("orders").addEventListener("click", async e => {
-      const btn = e.target.closest(".fbtn");
-      if (!btn) return;
-      const id = btn.dataset.id;
-      if (btn.dataset.act === "print") {
-        const o = state.orders.find(x => x.id === id);
-        if (o) printTicket(o);
-        return;
-      }
-      if (btn.dataset.act === "cobro") {
-        const o = state.orders.find(x => x.id === id);
-        if (o) abrirCobro(o);
-        return;
-      }
-      const s = btn.dataset.s;
-      try {
-        await setStatus(id, s);
-        refresh();
-      } catch (err) {
-        toast("Error al cambiar estado");
+/* Refresh */
+function refresh(){
+  var isFirst = state.seen.size === 0;
+  fetchOrders().then(function(orders){
+    var newOnline = 0;
+    orders.forEach(function(o){
+      if(!isFirst && !state.seen.has("notif_"+o.id) && o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&(o.order_type==="domicilio"||o.order_type==="llevar")){
+        state.seen.add("notif_"+o.id);
+        newOnline++;
       }
     });
-
-    $("soundToggle").addEventListener("change", e => { state.soundOn = e.target.checked; });
-    $("autoPrintToggle").addEventListener("change", e => { state.autoPrint = e.target.checked; });
-    $("onlyNew").addEventListener("change", e => { state.onlyNew = e.target.checked; render(); });
-    $("showArch").addEventListener("change", e => { state.showArch = e.target.checked; render(); });
-    $("csvBtn").addEventListener("click", downloadCsv);
-    $("logoutBtn").addEventListener("click", () => {
-      sessionStorage.removeItem(SESSION);
-      location.reload();
-    });
-
-    $("newOrderBtn").addEventListener("click", () => {
-      resetNewOrder();
-      $("newOrderModal").classList.remove("hidden");
-    });
-    $("closeNewBtn").addEventListener("click", closeNewOrder);
-    $("saveOrderBtn").addEventListener("click", saveNewOrder);
-    $("noClear").addEventListener("click", () => { newOrder.cart = []; renderCart(); });
-    $("noSearch").addEventListener("input", renderGrid);
-    $("segType").addEventListener("click", e => {
-      const b = e.target.closest(".seg-btn");
-      if (!b) return;
-      setSegType(b.dataset.t);
-    });
-    $("noTabs").addEventListener("click", e => {
-      const b = e.target.closest(".tab");
-      if (!b) return;
-      state.pCat = parseInt(b.dataset.i, 10);
-      renderTabs();
-      renderGrid();
-    });
-    $("noGrid").addEventListener("click", e => {
-      const b = e.target.closest(".p-btn");
-      if (!b) return;
-      const ci = parseInt(b.dataset.ci, 10);
-      const ii = parseInt(b.dataset.ii, 10);
-      const it = catItems(ci)[ii];
-      if ((it.variants || []).length) openVariants(ci, ii);
-      else addToCart(ci, ii, null);
-    });
-    $("noVariantList").addEventListener("click", e => {
-      const b = e.target.closest(".v-btn");
-      if (!b) return;
-      const ci = parseInt($("noVariant").dataset.ci, 10);
-      const ii = parseInt($("noVariant").dataset.ii, 10);
-      const it = catItems(ci)[ii];
-      const v = (it.variants || [])[parseInt(b.dataset.v, 10)];
-      addToCart(ci, ii, v);
-      $("noVariant").classList.add("hidden");
-    });
-    $("noItems").addEventListener("click", e => {
-      const b = e.target.closest("button");
-      if (!b) return;
-      const ix = parseInt(b.dataset.ix, 10);
-      const c = newOrder.cart[ix];
-      if (!c) return;
-      if (b.dataset.del) {
-        newOrder.cart.splice(ix, 1);
-      } else if (b.dataset.d === "-1") {
-        c.qty -= 1;
-        if (c.qty <= 0) newOrder.cart.splice(ix, 1);
-      } else {
-        c.qty += 1;
-      }
-      renderCart();
-    });
-
-    var lb = $("loginBtn"), lp = $("loginPass"), lu = $("loginUser");
-    if (lb) lb.addEventListener("click", doLogin);
-    if (lp) lp.addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
-    if (lu) lu.addEventListener("keydown", e => { if (e.key === "Enter") $("loginPass").focus(); });
-
-  /* ---------- Productos ---------- */
-  var pbtn = $("productsBtn"), cbtn = $("closeProductsBtn"), abtn = $("addProductBtn"), sbtn = $("pmSearch");
-  if (pbtn) pbtn.addEventListener("click", () => { $("productsModal").classList.remove("hidden"); fetchProducts(); });
-  if (cbtn) cbtn.addEventListener("click", () => $("productsModal").classList.add("hidden"));
-  if (abtn) abtn.addEventListener("click", addProduct);
-  if (sbtn) sbtn.addEventListener("input", () => renderProducts(window._prodCache || []));
-
-    function fetchProducts() {
-      fetch(API.replace("/orders", "/menu_items") + "?marca=eq." + encodeURIComponent(BRAND.marca || "") + "&select=*&order=categoria,orden", { headers: HEADERS })
-        .then(r => r.json()).then(rows => {
-          window._prodCache = rows;
-          renderProducts(rows);
-          // poblar datalist de estaciones
-          const ests = [...new Set(rows.map(r => r.estacion || "").filter(Boolean))];
-          $("pmEstList").innerHTML = ests.map(e => '<option value="' + esc(e) + '">').join("");
-        }).catch(() => toast("Error al cargar productos"));
+    state.orders=orders;
+    if(newOnline>0){
+      state.newOnlineCount+=newOnline;
+      if(state.soundOn)beep();
+      document.title = "("+state.newOnlineCount+") NUEVO - "+BRAND.business;
+      try{if("Notification"in window&&Notification.permission==="granted"){new Notification("Nuevo pedido online",{body:newOnline+" pedido(s) nuevo(s)",icon:"../logo.png"})}}catch(e){}
+      toast("NUEVO PEDIDO ONLINE (+"+newOnline+")");
     }
+    $("refreshNote").textContent="Actualizado "+fmtHora(new Date());render();
+  }).catch(function(e){$("refreshNote").textContent="Error: "+e.message});
+}
+function start(){clearInterval(state.pollTimer);state.pollTimer=setInterval(refresh,3000);}
 
-    function renderProducts(rows) {
-      const q = ($("pmSearch").value || "").toLowerCase();
-      const filtered = q ? rows.filter(r => r.nombre.toLowerCase().includes(q) || r.categoria.toLowerCase().includes(q)) : rows;
-      let lastCat = "";
-      $("productsList").innerHTML = filtered.map(p => {
-        const catLine = p.categoria !== lastCat ? '<div style="font-weight:800;margin:10px 0 4px;color:var(--primary)">' + esc(p.categoria) + '</div>' : '';
-        lastCat = p.categoria;
-        return catLine + '<div class="user-row"><span><span class="u-name">' + esc(p.nombre) + '</span> $' + p.precio + (p.estacion ? '<span class="u-rol">' + esc(p.estacion) + '</span>' : '') + (!p.disponible ? ' <span style="color:#c62828">AGOTADO</span>' : '') + '</span>' +
-          '<span class="u-btns"><button class="btn-sm" data-pid="' + p.id + '" data-act="edit">✏️</button>' +
-          '<button class="btn-sm danger" data-pid="' + p.id + '" data-act="toggle" data-val="' + !p.disponible + '">' + (p.disponible ? 'Desactivar' : 'Activar') + '</button></span></div>';
-      }).join("");
-      document.querySelectorAll("#productsList .btn-sm").forEach(b => {
-        b.addEventListener("click", () => {
-          const pid = b.dataset.pid;
-          if (b.dataset.act === "toggle") {
-            fetch(API.replace("/orders", "/menu_items") + "?id=eq." + pid, {
-              method: "PATCH", headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS),
-              body: JSON.stringify({ disponible: b.dataset.val === "true" })
-            }).then(() => fetchProducts()).catch(() => toast("Error"));
-          } else if (b.dataset.act === "edit") {
-            const p = rows.find(r => r.id === pid);
-            if (!p) return;
-            $("pmCat").value = p.categoria;
-            $("pmName").value = p.nombre;
-            $("pmPrice").value = p.precio;
-            $("pmDesc").value = p.descripcion || "";
-            $("pmEstacion").value = p.estacion || "";
-            $("addProductBtn").textContent = "💾 Guardar cambios";
-            $("addProductBtn").dataset.editId = pid;
-          }
-        });
-      });
-    }
+/* Init App */
+function initApp(){
+  var raw=localStorage.getItem(SESSION);if(!raw)return;
+  try{var user=JSON.parse(raw);if(!user||!user.username)return}catch(e){return}
+  currentUser = user;
+  document.title = user.nombre + " - " + BRAND.business;
+  $("pinScreen").classList.add("hidden");$("app").classList.remove("hidden");
+  $("hdTitle").textContent=BRAND.business;
+  // User menu
+  var av = $("userAvatar"); if(av) av.textContent = (user.nombre||"U").charAt(0).toUpperCase();
+  var nm = $("hdUserName2"); if(nm) nm.textContent = user.nombre;
+  var rl = $("hdUserRol2"); if(rl) rl.textContent = user.rol;
+  if(isAdmin()){$("usersBtn").style.display="";$("productsBtn").style.display=""}
+  // Ocultar acciones segun rol
+  if(!canDo("usuarios")){$("usersBtn").style.display="none"}
+  if(!canDo("productos")){$("productsBtn").style.display="none"}
+  if(!canDo("reportes")){$("reportesBtn").style.display="none"}
+  if(!canDo("gastos")){$("gastosBtn").style.display="none"}
+  if(!canDo("nuevoPedido")){$("newOrderBtn").style.display="none"}
+  if(!canDo("turno")){$("turnoBadge").style.display="none"}
+  // PWA service worker
+  if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
+  // Cerrar dropdown al hacer clic fuera
+  document.addEventListener("click",function(e){if(!e.target.closest(".user-menu")){var um=document.getElementById("userMenu");if(um)um.classList.remove("open")}})
+  // Wire UI
+  $("noTabs").addEventListener("click",function(e){var b=e.target.closest(".tab");if(b){state.pCat=parseInt(b.dataset.i,10);renderTabs();renderGrid()}});
+  $("noGrid").addEventListener("click",function(e){var b=e.target.closest(".p-btn");if(!b)return;var ci=parseInt(b.dataset.ci,10),ii=parseInt(b.dataset.ii,10),it=catItems(ci)[ii];if((it.variants||[]).length)openVariants(ci,ii);else addToCart(ci,ii,null)});
+  $("noVariantList").addEventListener("click",function(e){var b=e.target.closest(".v-btn");if(!b)return;var ci=parseInt($("noVariant").dataset.ci,10),ii=parseInt($("noVariant").dataset.ii,10),it=catItems(ci)[ii],v=(it.variants||[])[parseInt(b.dataset.v,10)];addToCart(ci,ii,v);$("noVariant").classList.add("hidden")});
+  $("noItems").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;var ix=parseInt(b.dataset.ix,10),c=newOrder.cart[ix];if(!c)return;if(b.dataset.del){newOrder.cart.splice(ix,1)}else if(b.classList.contains("no-comment")){setItemComment(ix)}else if(b.classList.contains("no-cortesia")){toggleCortesia(ix)}else if(b.dataset.d==="-1"){c.qty-=1;if(c.qty<=0)newOrder.cart.splice(ix,1)}else{c.qty+=1};renderCart()});
+  $("noSearch").addEventListener("input",renderGrid);
+  $("noClear").addEventListener("click",function(){newOrder.cart=[];renderCart()});
+  $("segType").addEventListener("click",function(e){var b=e.target.closest(".seg-btn");if(b)setSegType(b.dataset.t)});
+  $("soundToggle").addEventListener("change",function(e){state.soundOn=e.target.checked});
+  $("onlyNew").addEventListener("change",function(e){state.onlyNew=e.target.checked;renderCards()});
+  $("showArch").addEventListener("change",function(e){state.showArch=e.target.checked;renderCards()});
+  $("payMethods").addEventListener("click",function(e){var b=e.target.closest(".pay-btn");if(!b)return;cobroState.method=b.dataset.m;document.querySelectorAll(".pay-btn").forEach(function(x){x.classList.remove("on")});b.classList.add("on");cobroFields()});
+  $("spClose").addEventListener("click",function(){state.selectedOrderId=null;render()});
+  // Reportes
+  $("closeReportesBtn")&&$("closeReportesBtn").addEventListener("click",function(){$("reportesModal").classList.add("hidden")});
+  document.querySelectorAll("#reporteTabs .seg-btn").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll("#reporteTabs .seg-btn").forEach(function(x){x.classList.remove("on")});b.classList.add("on");cargarReportes(b.dataset.rt)})});
+  // Gastos
+  $("closeGastosBtn")&&$("closeGastosBtn").addEventListener("click",function(){$("gastosModal").classList.add("hidden")});
+  $("saveGastoBtn")&&$("saveGastoBtn").addEventListener("click",guardarGasto);
+  // Turno
+  $("closeTurnoBtn")&&$("closeTurnoBtn").addEventListener("click",function(){$("turnoModal").classList.add("hidden")});
+  // Users/Products
+  $("closeUsersBtn")&&$("closeUsersBtn").addEventListener("click",function(){$("usersModal").classList.add("hidden")});
+  $("closeProductsBtn")&&$("closeProductsBtn").addEventListener("click",function(){$("productsModal").classList.add("hidden")});
+  $("addProductBtn")&&$("addProductBtn").addEventListener("click",addProduct);
+  var ps=document.getElementById("pmSearch");ps&&ps.addEventListener("input",function(){renderProducts(window._prodCache||[])});
+  $("addUserBtn")&&$("addUserBtn").addEventListener("click",addUser);
+  refresh();start();switchTab("restaurante");
+}
 
-    function addProduct() {
-      const cat = $("pmCat").value.trim();
-      const name = $("pmName").value.trim();
-      const price = parseInt($("pmPrice").value, 10);
-      const desc = $("pmDesc").value.trim();
-      const estacion = $("pmEstacion").value.trim();
-      if (!cat || !name || isNaN(price)) { toast("Completa categoría, nombre y precio"); return; }
-      const editId = $("addProductBtn").dataset.editId;
-      const body = JSON.stringify({ categoria: cat, nombre: name, precio: price, descripcion: desc, estacion: estacion, marca: (BRAND.marca || "") });
-      const method = editId ? "PATCH" : "POST";
-      const url = editId ? (API.replace("/orders", "/menu_items") + "?id=eq." + editId) : API.replace("/orders", "/menu_items");
-      fetch(url, { method, headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS), body })
-        .then(() => { toast(editId ? "Producto actualizado" : "Producto creado"); $("pmCat").value = ""; $("pmName").value = ""; $("pmPrice").value = ""; $("pmDesc").value = ""; $("pmEstacion").value = ""; $("addProductBtn").textContent = "➕ Agregar producto"; delete $("addProductBtn").dataset.editId; fetchProducts(); })
-        .catch(() => toast("Error al guardar"));
-    }
-  }
+/* Reportes (simple) */
+var rchart=null;
+function cargarReportes(modo){
+  $("reporteContent").classList.remove("hidden");$("topsTable").style.display="none";var cc=$("reporteChart");cc.parentElement.style.display="";var desde=new Date();
+  if(modo==="hoy")desde.setHours(0,0,0,0);else if(modo==="semana")desde.setDate(desde.getDate()-7);else if(modo==="mes")desde.setDate(desde.getDate()-30);
+  apiGet("orders?select=*&marca=eq."+encodeURIComponent(BRAND.marca||"")+"&created_at=gte."+desde.toISOString()+"&order=created_at.asc&limit=500").then(function(orders){
+    var t=orders.reduce(function(a,o){return a+(o.total||0)},0);$("rPedidos").textContent=orders.length;$("rIngresos").textContent=money(t);$("rTicket").textContent=orders.length?money(Math.round(t/orders.length)):"$0";
+    var mt={Efectivo:0,Tarjeta:0,Transferencia:0};orders.forEach(function(o){var p=(o.payment||"").toLowerCase();if(p.includes("efect"))mt.Efectivo+=(o.total||0);else if(p.includes("tarj")||p.includes("tdc"))mt.Tarjeta+=(o.total||0);else if(p.includes("transf"))mt.Transferencia+=(o.total||0)});
+    $("rEfectivo").textContent=money(mt.Efectivo);$("rTarjeta").textContent=money(mt.Tarjeta);$("rTransf").textContent=money(mt.Transferencia);
+    if(rchart)rchart.destroy();
+    if(modo==="tops"){cc.parentElement.style.display="none";var ic={};orders.forEach(function(o){(o.items||[]).forEach(function(i){var k=i.name;if(!ic[k])ic[k]={name:i.name,qty:0,rev:0};ic[k].qty+=(i.qty||0);ic[k].rev+=(i.price||0)*(i.qty||0)})});var tops=Object.values(ic).sort(function(a,b){return b.qty-a.qty}).slice(0,20);$("topsTable").style.display="block";$("topsTable").innerHTML=tops.length?'<table style="width:100%;border-collapse:collapse"><thead><tr style="font-size:11px;color:var(--muted)"><th style="text-align:left;padding:6px 8px">Producto</th><th style="text-align:right;padding:6px 8px">Vendido</th><th style="text-align:right;padding:6px 8px">Ingreso</th></tr></thead><tbody>'+tops.map(function(t,i){return'<tr style="border-top:1px solid var(--border);font-size:13px"><td style="padding:6px 8px;font-weight:700">'+(i+1)+'. '+esc(t.name)+'</td><td style="text-align:right;padding:6px 8px">'+t.qty+'</td><td style="text-align:right;padding:6px 8px;color:var(--primary);font-weight:700">'+money(t.rev)+'</td></tr>'}).join("")+'</tbody></table>':'<div class="empty">Sin datos</div>';return}
+    var dias={},fmt=modo==="hoy"?function(d){return d.toLocaleTimeString("es-MX",{hour:"2-digit"})}:function(d){return d.toLocaleDateString("es-MX",{day:"2-digit",month:"2-digit"})};
+    if(modo==="hoy"){for(var h=8;h<=23;h++){var k=h+":00";dias[k]={label:k,total:0,count:0}}}else{var s=new Date(desde);for(var d=new Date(s);d<=new Date();d.setDate(d.getDate()+1)){var k=d.toISOString().slice(0,10);dias[k]={label:fmt(d),total:0,count:0}}}
+    orders.forEach(function(o){var d=new Date(o.created_at),k;if(modo==="hoy")k=d.getHours()+":00";else k=d.toISOString().slice(0,10);if(dias[k]){dias[k].total+=(o.total||0);dias[k].count++}});
+    var labels=Object.values(dias).map(function(d){return d.label}),data=Object.values(dias).map(function(d){return d.total});
+    rchart=new Chart(cc,{type:"bar",data:{labels:labels,datasets:[{label:"Ingresos",data:data,backgroundColor:"#e8367c",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:function(v){return"$"+v.toLocaleString()}}},x:{ticks:{maxRotation:45,font:{size:10}}}}}});
+  }).catch(function(){$("rPedidos").textContent="ERR"});
+}
 
-  /* ---------- Cobrar ---------- */
-  var cobroState = { method: "efectivo", order: null };
+/* Gastos */
+var gastosList=[];
+function fetchGastos(){try{var r=localStorage.getItem((BRAND.marca||"store")+"Gastos");return r?JSON.parse(r):[]}catch(e){return[]}}
+function cargarGastos(){
+  gastosList=fetchGastos();var hoy=new Date().toDateString();
+  var hoyGas=gastosList.filter(function(g){return new Date(g.creado_en).toDateString()===hoy}).reduce(function(a,g){return a+(g.monto||0)},0);
+  var sf=new Date();sf.setDate(sf.getDate()-7);var semGas=gastosList.filter(function(g){return new Date(g.creado_en)>=sf}).reduce(function(a,g){return a+(g.monto||0)},0);
+  $("gHoy").textContent=money(hoyGas);$("gSemana").textContent=money(semGas);
+  $("gastosList").innerHTML=gastosList.length?gastosList.slice(0,40).map(function(g){return'<div class="user-row"><span><span class="u-name">'+esc(g.categoria)+'</span> '+money(g.monto)+'</span><span class="u-btns"><span style="font-size:10px;color:var(--muted)">'+new Date(g.creado_en).toLocaleDateString("es-MX")+'</span><button class="btn-sm danger" onclick="window._delGasto(\''+g.id+'\')">X</button></span></div>'}).join(""):'<div class="empty">Sin gastos</div>';
+}
+window._delGasto=function(id){var g=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"Gastos")||"[]");localStorage.setItem((BRAND.marca||"store")+"Gastos",JSON.stringify(g.filter(function(x){return x.id!==id})));cargarGastos();};
+function guardarGasto(){var cat=$("gmCat").value,monto=parseInt($("gmMonto").value,10),desc=$("gmDesc").value.trim();if(!monto||monto<=0){toast("Ingresa un monto");return}var g=fetchGastos();g.push({id:Date.now().toString(),categoria:cat,monto:monto,descripcion:desc||"",creado_en:new Date().toISOString()});localStorage.setItem((BRAND.marca||"store")+"Gastos",JSON.stringify(g));$("gmMonto").value="";$("gmDesc").value="";toast("Gasto: "+money(monto));cargarGastos();}
 
-  function initCobro() {
-    var cb = $("closeCobroBtn");
-    var pm = $("payMethods");
-    var cf = $("confirmCobroBtn");
-    if (cb) cb.addEventListener("click", () => $("cobroModal").classList.add("hidden"));
-    if (pm) pm.addEventListener("click", e => {
-      var b = e.target.closest(".pay-btn");
-      if (!b) return;
-      cobroState.method = b.dataset.m;
-      document.querySelectorAll(".pay-btn").forEach(x => x.classList.remove("on"));
-      b.classList.add("on");
-      renderCobroFields();
-    });
-    if (cf) cf.addEventListener("click", confirmarCobro);
-  }
+/* Productos */
+function fetchProducts(){apiGet("menu_items?marca=eq."+encodeURIComponent(BRAND.marca||"")+"&select=*&order=categoria,orden").then(function(rows){window._prodCache=rows;renderProducts(rows);$("pmEstList").innerHTML=[...new Set(rows.map(function(r){return r.estacion||""}).filter(Boolean))].map(function(e){return'<option value="'+esc(e)+'">'}).join("")}).catch(function(){})}
+function renderProducts(rows){var q=($("pmSearch").value||"").toLowerCase(),f=q?rows.filter(function(r){return r.nombre.toLowerCase().includes(q)||r.categoria.toLowerCase().includes(q)}):rows,lc="";$("productsList").innerHTML=f.map(function(p){var sk=parseInt(localStorage.getItem("prodStock_"+p.id))||0,st=sk>0?" (Stock:"+sk+")":localStorage.getItem("prodStock_"+p.id)?" (AGOTADO)":"",cl=p.categoria!==lc?'<div style="font-weight:800;margin:10px 0 4px;color:var(--primary)">'+esc(p.categoria)+'</div>':'';lc=p.categoria;return cl+'<div class="user-row"><span><span class="u-name">'+esc(p.nombre)+'</span> $'+p.precio+st+(p.estacion?'<span class="u-rol">'+esc(p.estacion)+'</span>':'')+(!p.disponible?' <span style="color:var(--red)">AGOTADO</span>':'')+'</span><span class="u-btns"><button class="btn-sm" onclick="PosEditProd(\''+p.id+'\')">E</button><button class="btn-sm" onclick="PosStock(\''+p.id+'\')">📦</button><button class="btn-sm danger" onclick="PosToggleProd(\''+p.id+'\','+!p.disponible+')">'+(p.disponible?'Desactivar':'Activar')+'</button></span></div>'}).join("")}
+function PosEditProd(pid){var p=(window._prodCache||[]).find(function(r){return r.id===pid});if(!p)return;$("pmCat").value=p.categoria;$("pmName").value=p.nombre;$("pmPrice").value=p.precio;$("pmDesc").value=p.descripcion||"";$("pmEstacion").value=p.estacion||"";var sk=localStorage.getItem("prodStock_"+pid)||"";$("pmStock").value=sk;$("pmPrep").value=localStorage.getItem("prodPrep_"+pid)||"";$("addProductBtn").textContent="Guardar cambios";$("addProductBtn").dataset.editId=pid;}
+function PosStock(pid){var stock=prompt("Cantidad en inventario:",localStorage.getItem("prodStock_"+pid)||"0");if(stock!==null){var n=parseInt(stock)||0;if(n>0)localStorage.setItem("prodStock_"+pid,String(n));else localStorage.removeItem("prodStock_"+pid);fetchProducts();toast("Stock actualizado")}}
+function PosToggleProd(pid,val){
+  var xhr=new XMLHttpRequest();
+  xhr.open("PATCH","https://edquyomwiiaawqslsisd.supabase.co/rest/v1/menu_items?id=eq."+pid,true);
+  xhr.setRequestHeader("Content-Type","application/json");
+  xhr.setRequestHeader("Prefer","return=minimal");
+  xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+  xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+  xhr.onload=function(){fetchProducts()};
+  xhr.send(JSON.stringify({disponible:val}));
+}
+function addProduct(){var cat=$("pmCat").value.trim(),name=$("pmName").value.trim(),price=parseInt($("pmPrice").value,10),desc=$("pmDesc").value.trim(),est=$("pmEstacion").value.trim(),stock=$("pmStock").value.trim(),prep=$("pmPrep").value.trim();if(!cat||!name||isNaN(price)){toast("Completa datos");return}var eid=$("addProductBtn").dataset.editId,body=JSON.stringify({categoria:cat,nombre:name,precio:price,descripcion:desc,estacion:est,marca:BRAND.marca||""});var url=eid?API.replace("/rest/v1/orders","/rest/v1/menu_items")+"?id=eq."+eid:API.replace("/rest/v1/orders","/rest/v1/menu_items");fetch(url,{method:eid?"PATCH":"POST",headers:{"Content-Type":"application/json","Prefer":"return=minimal","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:body}).then(function(){if(eid){toast("Actualizado")}else{toast("Creado")}$("pmCat").value="";$("pmName").value="";$("pmPrice").value="";$("pmDesc").value="";$("pmEstacion").value="";$("pmStock").value="";$("pmPrep").value="";$("addProductBtn").textContent="Agregar producto";delete $("addProductBtn").dataset.editId;fetchProducts()}).catch(function(){toast("Error")})}
+function fetchUsers(){apiGet("usuarios?select=*&order=username").then(function(rows){
+  $("usersList").innerHTML=rows.map(function(u){return'<div class="user-row"><span><span class="u-name">'+esc(u.username)+'</span> '+esc(u.nombre)+' <span class="u-rol">'+esc(u.rol)+'</span>'+(u.activo?'':' <span class="u-rol" style="color:var(--red)">INACTIVO</span>')+'</span><span class="u-btns"><button class="btn-sm" onclick="PosToggleUser(\''+u.id+'\','+!u.activo+')">'+(u.activo?'Desactivar':'Activar')+'</button><button class="btn-sm" onclick="PosChangePass(\''+u.id+'\',\''+esc(u.username)+'\')" title="Cambiar contraseña">🔑</button></span></div>'}).join("")
+})}
+function PosToggleUser(uid,val){
+  fetch(API.replace("/rest/v1/orders","/rest/v1/usuarios")+"?id=eq."+uid,{method:"PATCH",headers:{"Content-Type":"application/json","Prefer":"return=minimal","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:JSON.stringify({activo:val})}).then(function(){toast(val?"Usuario activado":"Usuario desactivado");fetchUsers()}).catch(function(){toast("Error")});
+}
+function PosChangePass(uid,username){
+  var pass=prompt("Nueva contraseña para "+username+":","");if(!pass||pass.length<4){if(pass!==null)toast("Minimo 4 caracteres");return}
+  crypto.subtle.digest("SHA-256",new TextEncoder().encode(pass)).then(function(buf){var h=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");return fetch(API.replace("/rest/v1/orders","/rest/v1/usuarios")+"?id=eq."+uid,{method:"PATCH",headers:{"Content-Type":"application/json","Prefer":"return=minimal","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:JSON.stringify({password_hash:h})})}).then(function(){toast("Contraseña actualizada")}).catch(function(){toast("Error al cambiar contraseña")});
+}
+function addUser(){var username=$("umUser").value.trim(),nombre=$("umName").value.trim(),pass=$("umPass").value,rol=$("umRol").value;if(!username||!nombre||!pass){toast("Completa campos");return}if(pass.length<4){toast("Minimo 4 caracteres");return}crypto.subtle.digest("SHA-256",new TextEncoder().encode(pass)).then(function(buf){var h=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");return fetch(API.replace("/rest/v1/orders","/rest/v1/usuarios"),{method:"POST",headers:{"Content-Type":"application/json","Prefer":"return=minimal","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:JSON.stringify({username:username,nombre:nombre,rol:rol,password_hash:h,activo:true})})}).then(function(){toast("Usuario creado");$("umUser").value="";$("umName").value="";$("umPass").value="";fetchUsers()}).catch(function(){toast("Error al crear usuario")})}
 
-  function abrirCobro(o) {
-    cobroState.order = o;
-    cobroState.method = "efectivo";
-    $("cobroInfo").innerHTML = '<div class="cobro-total">' + money(o.total) + '</div>' +
-      '<div style="font-size:13px;color:var(--muted)">Pedido #' + esc(o.folio) + ' · ' + esc(o.name) + '</div>';
-    $("cobroModal").classList.remove("hidden");
-    document.querySelectorAll(".pay-btn").forEach(x => x.classList.remove("on"));
-    var defBtn = document.querySelector('.pay-btn[data-m="efectivo"]');
-    if (defBtn) defBtn.classList.add("on");
-    renderCobroFields();
-  }
+/* Turno */
+window.PosTurno = function(){ $("turnoModal").classList.remove("hidden"); };
 
-  function renderCobroFields() {
-    var m = cobroState.method;
-    var total = cobroState.order ? cobroState.order.total : 0;
-    var html = "";
-    if (m === "efectivo") {
-      html += '<div class="frow"><label>Monto recibido</label><input type="number" id="cobroMonto" value="' + total + '" min="0" oninput="updateCambio()"></div>';
-      html += '<div id="cobroCambio" style="text-align:center;font-size:15px;font-weight:700;margin:8px 0;color:var(--green)">Cambio: $0</div>';
-      html += '<div class="frow"><label>Propina (opcional)</label><input type="number" id="cobroPropina" value="0" min="0" oninput="updateCambio()"></div>';
-    } else if (m === "tarjeta" || m === "transferencia") {
-      html += '<div class="frow"><label>Referencia / Últimos dígitos</label><input type="text" id="cobroRef" placeholder="Ej. 4521"></div>';
-      html += '<div class="frow"><label>Propina (opcional)</label><input type="number" id="cobroPropina" value="0" min="0"></div>';
-    } else {
-      html += '<div class="frow"><label>Referencia / Comisión (opcional)</label><input type="text" id="cobroRef" placeholder="Ej. Comisión 30%"></div>';
-    }
-    $("cobroFields").innerHTML = html;
-  }
-
-  window.updateCambio = function () {
-    var monto = parseInt(document.getElementById("cobroMonto").value, 10) || 0;
-    var propina = parseInt(document.getElementById("cobroPropina").value, 10) || 0;
-    var total = cobroState.order ? cobroState.order.total : 0;
-    var cambio = monto - total - propina;
-    var el = document.getElementById("cobroCambio");
-    if (el) el.textContent = cambio >= 0 ? "Cambio: " + money(cambio) : "Faltan: " + money(-cambio);
-  };
-
-  async function confirmarCobro() {
-    var o = cobroState.order;
-    if (!o) return;
-    var m = cobroState.method;
-    var metodoLabel = { efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia", didi: "DIDI", uber: "Uber", rappi: "Rappi" }[m] || m;
-    var detalle = "";
-    var propina = parseInt((document.getElementById("cobroPropina") || {}).value, 10) || 0;
-    if (m === "efectivo") {
-      var recibido = parseInt((document.getElementById("cobroMonto") || {}).value, 10) || 0;
-      var cambio = recibido - o.total - propina;
-      if (cambio < 0) { toast("El monto recibido no cubre el total + propina"); return; }
-      detalle = "Recibido: " + recibido + " | Cambio: " + cambio + (propina ? " | Propina: " + propina : "");
-    } else {
-      var ref = (document.getElementById("cobroRef") || {}).value || "";
-      detalle = (ref ? "Ref: " + ref + " | " : "") + (propina ? "Propina: " + propina : "");
-    }
-    var nota = (o.notes || "");
-    if (nota) nota += " | ";
-    nota += "PAGO: " + metodoLabel + " | " + detalle;
-    try {
-      await fetch(API + "?id=eq." + o.id, {
-        method: "PATCH", headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS),
-        body: JSON.stringify({ payment: metodoLabel, notes: nota })
-      });
-      $("cobroModal").classList.add("hidden");
-      toast("Cobro registrado: " + metodoLabel);
-      refresh();
-    } catch (e) { toast("Error al guardar cobro"); }
-  }
-
-  async function doLogin() {
-    const u = $("loginUser").value.trim();
-    const p = $("loginPass").value;
-    if (!u || !p) return;
-    try {
-      const hash = await sha256(p);
-      const r = await fetch(API.replace("/orders", "/usuarios") + "?username=eq." + encodeURIComponent(u) + "&select=*&limit=1", {
-        headers: HEADERS
-      });
-      const rows = await r.json();
-      const user = rows[0];
-      if (!user || user.password_hash !== hash || !user.activo) throw new Error("invalid");
-      const sess = { username: user.username, nombre: user.nombre, rol: user.rol };
-      sessionStorage.setItem(SESSION, JSON.stringify(sess));
-      showApp(sess);
-    } catch (e) {
-      $("loginErr").classList.remove("hidden");
-      $("loginPass").value = "";
-    }
-  }
-
-  function showApp(user) {
-    $("pinScreen").classList.add("hidden");
-    $("app").classList.remove("hidden");
-    $("hdUserName").textContent = user.nombre;
-    $("hdUserRol").textContent = user.rol;
-    if (user.rol === "admin") { $("usersBtn").style.display = ""; $("productsBtn").style.display = ""; }
-    if ("Notification" in window && Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
-    // Registrar turnoBadge al hacer login
-    var badge = $("turnoBadge");
-    if (badge) {
-      badge.onclick = function () {
-        var raw = sessionStorage.getItem(SESSION);
-        var u = null;
-        try { u = JSON.parse(raw); } catch (e) {}
-        if (!u) { toast("Error de sesión"); return; }
-        $("turnoModal").classList.remove("hidden");
-        renderTurnoModal(u);
-      };
-    }
-    refresh();
-    start();
-    checkTurno();
-    initCobro();
-  }
-
-  /* ---------- Turnos ---------- */
-  async function checkTurno() {
-    try {
-      const r = await fetch(API.replace("/orders", "/turnos") + "?marca=eq." + encodeURIComponent(BRAND.marca || "") + "&estado=eq.abierto&select=*&order=abierto_en.desc&limit=1", { headers: HEADERS });
-      const rows = await r.json();
-      state.turno = rows[0] || null;
-    } catch (e) { state.turno = null; }
-    $("turnoBadge").textContent = state.turno ? "🟢 Turno abierto " + fmtTime(state.turno.abierto_en) : "🔴 Clic para abrir turno";
-  }
-
-  function renderTurnoModal(user) {
-    if (!state.turno) {
-      $("turnoTitle").textContent = "🕐 Abrir turno";
-      $("turnoBody").innerHTML =
-        '<div class="frow"><label>Efectivo inicial</label><input type="number" id="tmEfectivoIni" value="0" min="0"></div>' +
-        '<button class="btn btn-primary" id="tmAbrirBtn" style="width:100%;margin-top:12px">🔓 Abrir turno</button>';
-      $("tmAbrirBtn").addEventListener("click", () => abrirTurno(user));
-    } else {
-      const ventas = state.orders.filter(o => o.created_at >= state.turno.abierto_en && o.status !== "cancelado").reduce((a, o) => a + (o.total || 0), 0);
-      $("turnoTitle").textContent = "🔒 Cerrar turno";
-      $("turnoBody").innerHTML =
-        '<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:12px">' +
-          '<div style="display:flex;justify-content:space-between"><span>Abierto:</span><b>' + fmtTime(state.turno.abierto_en) + '</b></div>' +
-          '<div style="display:flex;justify-content:space-between"><span>Por:</span><b>' + esc(state.turno.usuario_nombre) + '</b></div>' +
-          '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:18px"><span>Ventas esperadas:</span><b style="color:var(--green)">' + money(ventas) + '</b></div>' +
-          '<div style="display:flex;justify-content:space-between"><span>Efectivo inicial:</span><b>' + money(state.turno.efectivo_inicial) + '</b></div>' +
-          '<div style="display:flex;justify-content:space-between;border-top:1px dashed var(--border);margin-top:4px;padding-top:4px"><span>Total esperado:</span><b>' + money(ventas + state.turno.efectivo_inicial) + '</b></div>' +
-        '</div>' +
-        '<div class="frow"><label>Efectivo real contado</label><input type="number" id="tmEfectivoReal" value="' + (ventas + state.turno.efectivo_inicial) + '" min="0" step="1"></div>' +
-        '<div class="frow"><label>Notas</label><input type="text" id="tmNotas" placeholder="Opcional"></div>' +
-        '<div id="tmDiferencia" style="text-align:center;font-size:16px;margin:8px 0"></div>' +
-        '<button class="btn btn-primary" id="tmCerrarBtn" style="width:100%">🔒 Cerrar turno</button>';
-      $("tmEfectivoReal").addEventListener("input", function () {
-        const real = parseInt(this.value) || 0;
-        const esperado = ventas + (state.turno.efectivo_inicial || 0);
-        const dif = real - esperado;
-        $("tmDiferencia").innerHTML = dif === 0 ? '<span style="color:var(--green)">✅ Cuadrado</span>' :
-          (dif > 0 ? '<span style="color:var(--green)">📈 Sobrante: ' + money(dif) + '</span>' : '<span style="color:#c62828">📉 Faltante: ' + money(-dif) + '</span>');
-      });
-      $("tmEfectivoReal").dispatchEvent(new Event("input"));
-      $("tmCerrarBtn").addEventListener("click", () => cerrarTurno(ventas));
-    }
-  }
-
-  async function abrirTurno(user) {
-    const ini = parseInt($("tmEfectivoIni").value, 10) || 0;
-    const body = JSON.stringify({ marca: BRAND.marca || "", usuario_id: user.username, usuario_nombre: user.nombre, efectivo_inicial: ini });
-    try {
-      const r = await fetch(API.replace("/orders", "/turnos"), { method: "POST", headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS), body });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      $("turnoModal").classList.add("hidden");
-      toast("Turno abierto");
-      checkTurno();
-    } catch (e) { toast("Error al abrir turno"); }
-  }
-
-  async function cerrarTurno(ventas) {
-    const real = parseInt($("tmEfectivoReal").value, 10) || 0;
-    const notas = ($("tmNotas").value || "").trim();
-    const body = JSON.stringify({
-      estado: "cerrado",
-      cerrado_en: new Date().toISOString(),
-      efectivo_final: real,
-      notas: notas ? (notas + " | Ventas: " + ventas + " | Inicial: " + state.turno.efectivo_inicial + " | Real: " + real) : ("Ventas: " + ventas + " | Real: " + real)
-    });
-    try {
-      await fetch(API.replace("/orders", "/turnos") + "?id=eq." + state.turno.id, { method: "PATCH", headers: Object.assign({ "Content-Type": "application/json", "Prefer": "return=minimal" }, HEADERS), body });
-      $("turnoModal").classList.add("hidden");
-      toast("Turno cerrado. " + money(real));
-      checkTurno();
-    } catch (e) { toast("Error al cerrar turno"); }
-  }
-
-  var ctb = $("closeTurnoBtn");
-  if (ctb) ctb.addEventListener("click", () => $("turnoModal").classList.add("hidden"));
-
-  function init() {
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-      $("pinScreen").classList.add("hidden");
-      $("orders").innerHTML = '<div class="empty">Falta la configuración de Supabase.</div>';
-      return;
-    }
-    const raw = sessionStorage.getItem(SESSION);
-    try {
-      const user = JSON.parse(raw);
-      if (user && user.username) return showApp(user);
-    } catch (e) {}
-    wire();
-  }
-
-  init();
-})();
+/* Auto-init */
+if(localStorage.getItem(SESSION))initApp();

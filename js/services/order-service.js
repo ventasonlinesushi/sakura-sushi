@@ -90,7 +90,9 @@
           palitos: record.palitos || "",
           marca: record.marca || "",
           items: record.items,
-          total: record.total
+          total: record.total,
+          status: "nuevo",
+          source: "online"
         })
       }).then(r => r.ok).catch(() => false);
     }

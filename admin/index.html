@@ -4,214 +4,183 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#e8367c">
-<title>Sakura Sushi · Panel de pedidos</title>
+<title>Sakura Sushi · Panel</title>
 <link rel="icon" type="image/png" href="../logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mandala POS">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
 <div class="pin-screen" id="pinScreen">
-  <div class="pin-card">
+  <div class="pin-card" id="pinCard">
     <img src="../logo.png" alt="Sakura Sushi" class="pin-logo">
-    <h1>Panel de pedidos</h1>
-    <p>Sakura Sushi Paseos Mid</p>
+    <h1>Sakura Sushi</h1>
+    <p>Panel de administración</p>
     <input type="text" id="loginUser" placeholder="Usuario" autocomplete="off" autofocus>
     <input type="password" id="loginPass" placeholder="Contraseña">
     <button class="btn btn-primary" id="loginBtn">Entrar</button>
     <div class="pin-err hidden" id="loginErr">Usuario o contraseña incorrectos</div>
+    <div id="installTip" style="display:none;margin-top:14px;font-size:11px;color:var(--muted);text-align:left;line-height:1.6">
+      <b>TIP:</b> Agrega esta pagina a la pantalla de inicio de tu celular para usarla como una app.<br>
+      <b>iPhone:</b> Compartir ⏏ → Agregar a inicio<br>
+      <b>Android:</b> Menu ⋮ → Agregar a pantalla princ.
+    </div>
+    <div id="loginDebug" style="margin-top:8px;font-size:10px;color:gray;word-break:break-all"></div>
+  </div>
+  <div class="pin-card hidden" id="installCard">
+    <img src="../logo.png" alt="Sakura Sushi" class="pin-logo">
+    <h1>📱 Mandala POS</h1>
+    <p>Instálalo como una app en tu celular</p>
+    <div style="background:var(--primary-light);border-radius:12px;padding:14px;margin:14px 0;text-align:left;font-size:12px;line-height:1.8">
+      <b>iPhone / iPad (Safari):</b><br>
+      1. Toca <b>⏏ Compartir</b><br>
+      2. <b>Agregar a inicio</b><br>
+      3. Toca <b>Agregar</b><br><br>
+      <b>Android (Chrome):</b><br>
+      1. Toca <b>⋮ Menú</b> (3 puntitos)<br>
+      2. <b>Agregar a pantalla principal</b><br>
+      3. Toca <b>Agregar</b>
+    </div>
+    <button class="btn btn-primary" id="installDoneBtn">✅ Entendido, ir al login</button>
   </div>
 </div>
 
 <div class="app hidden" id="app">
   <header>
-    <div class="hd-title">
+    <div class="hd-left">
       <img src="../logo.png" alt="Sakura Sushi" class="hd-logo">
-      <div>
-        <h1>Panel de pedidos</h1>
-        <div class="hd-sub">Sakura Sushi Paseos Mid</div>
-      </div>
-      <div class="hd-user">
-        <span id="hdUserName"></span>
-        <span class="hd-rol" id="hdUserRol"></span>
+      <div class="hd-info">
+        <h1 id="hdTitle">Sakura Sushi</h1>
+        <span>Panel de pedidos</span>
       </div>
     </div>
     <div class="hd-actions">
-      <button class="turno-badge" id="turnoBadge">🔴 Clic para abrir turno</button>
-      <button class="btn btn-primary" id="usersBtn" style="display:none">👥 Usuarios</button>
-      <button class="btn btn-primary" id="productsBtn" style="display:none">📦 Productos</button>
-      <button class="btn btn-primary" id="newOrderBtn">➕ Nuevo pedido</button>
-      <label class="switch" title="Sonido al llegar un pedido">
+      <button class="turno-badge" id="turnoBadge" onclick="if(window.PosTurno)PosTurno()">🔴 Abrir turno</button>
+      <button class="btn ghost" id="cocinaBtn" title="Pantalla de cocina" onclick="window.open('cocina.html','_blank')">🍳 Cocina</button>
+      <button class="btn ghost" id="reportesBtn" title="Reportes" onclick="document.getElementById('reportesModal').classList.remove('hidden');cargarReportes('hoy')">📊</button>
+      <button class="btn ghost" id="gastosBtn" title="Gastos" onclick="document.getElementById('gastosModal').classList.remove('hidden');cargarGastos()">💸</button>
+      <button class="btn ghost" id="usersBtn" style="display:none" onclick="document.getElementById('usersModal').classList.remove('hidden');fetchUsers()">👥</button>
+      <button class="btn ghost" id="productsBtn" style="display:none" onclick="document.getElementById('productsModal').classList.remove('hidden');fetchProducts()">📦</button>
+      <label class="switch" title="Sonido al llegar pedido">
         <input type="checkbox" id="soundToggle" checked>
         <span>🔔</span>
       </label>
-      <button class="btn ghost" id="csvBtn">⬇ CSV</button>
-      <button class="btn ghost" id="logoutBtn">Salir</button>
+      <!-- Perfil de usuario -->
+      <div class="user-menu" id="userMenu" onclick="this.classList.toggle('open')">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info-header">
+          <span class="user-name-header" id="hdUserName2">---</span>
+          <span class="user-rol-header" id="hdUserRol2">---</span>
+        </div>
+        <span class="user-arrow">▾</span>
+        <div class="user-dropdown">
+          <div class="user-dropdown-div"></div>
+          <div class="user-dropdown-item drop-action" onclick="event.stopPropagation();localStorage.removeItem('sakuraAdmin');location.reload()">🔄 Cambiar de usuario</div>
+          <div class="user-dropdown-item drop-action" onclick="event.stopPropagation();localStorage.removeItem('sakuraAdmin');location.reload()">🚪 Cerrar sesión</div>
+        </div>
+      </div>
     </div>
   </header>
 
-  <div class="stats">
-    <div class="stat"><b id="stNuevos">0</b><span>nuevos</span></div>
-    <div class="stat"><b id="stHoy">0</b><span>pedidos hoy</span></div>
-    <div class="stat"><b id="stIngresos">$0</b><span>ingresos hoy</span></div>
+  <!-- TABS -->
+  <nav class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-tab="restaurante" onclick="switchTab('restaurante')">🍽 En restaurante <span class="tab-badge" id="badgeRest">0</span></button>
+    <button class="tab-btn" data-tab="whatsapp" onclick="switchTab('whatsapp')">📱 WhatsApp <span class="tab-badge" id="badgeWsp">0</span></button>
+    <button class="tab-btn" data-tab="cobradas" onclick="switchTab('cobradas')">💰 Cobradas <span class="tab-badge" id="badgeCob">0</span></button>
+  </nav>
+
+  <!-- STATS -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><span class="sc-value" id="stNuevos">0</span><span class="sc-label">Nuevos</span></div>
+    <div class="stat-card"><span class="sc-value" id="stActivos">0</span><span class="sc-label">Activos</span></div>
+    <div class="stat-card"><span class="sc-value" id="stHoy">0</span><span class="sc-label">Hoy</span></div>
+    <div class="stat-card"><span class="sc-value" id="stIngresos">$0</span><span class="sc-label">Ingresos hoy</span><span class="sc-sub" id="stTicketProm">--</span></div>
   </div>
 
-  <div class="filters">
-    <label class="chk"><input type="checkbox" id="onlyNew"> Solo nuevos</label>
-    <label class="chk"><input type="checkbox" id="showArch"> Ver archivados</label>
-    <label class="chk" title="Imprimir ticket automáticamente al llegar un pedido"><input type="checkbox" id="autoPrintToggle" checked> 🖨 Auto</label>
-    <span class="refresh-note" id="refreshNote"></span>
+  <!-- CONTENT -->
+  <div class="content-area">
+    <div class="filters-bar">
+      <label class="chk" id="filtroSoloNuevos"><input type="checkbox" id="onlyNew"> Solo nuevos</label>
+      <label class="chk"><input type="checkbox" id="showArch"> Ver archivados</label>
+      <span class="filter-spacer"></span>
+      <span class="refresh-note" id="refreshNote">Conectando...</span>
+    </div>
+
+    <div class="orders-grid" id="orders"></div>
   </div>
 
-  <div id="orders" class="orders"></div>
+  <!-- FAB -->
+  <button class="fab" id="newOrderBtn" title="Nuevo pedido" onclick="resetNewOrder();document.getElementById('newOrderModal').classList.remove('hidden')">+</button>
+
+  <!-- PANEL LATERAL FIJO -->
+  <div class="side-panel hidden" id="sidePanel">
+    <div class="sp-close" id="spClose">✕</div>
+    <div class="sp-header">
+      <span class="sp-folio" id="spFolio"></span>
+      <span class="sp-badge" id="spBadge"></span>
+    </div>
+    <div class="sp-client" id="spClient"></div>
+    <div class="sp-divider"></div>
+    <div class="sp-actions" id="spActions"></div>
+    <div class="sp-divider"></div>
+    <div class="sp-inputs" id="spInputs"></div>
+    <div class="sp-extras" id="spExtras"></div>
+    <div class="sp-totals" id="spTotals"></div>
+  </div>
 </div>
 
+<!-- ============================================================ -->
+<!-- MODALES -->
+<!-- ============================================================ -->
+
+<!-- Modal Nuevo Pedido -->
 <div class="modal hidden" id="newOrderModal">
   <div class="modal-card">
-    <div class="modal-head">
-      <h2>➕ Nuevo pedido</h2>
-      <button class="btn ghost" id="closeNewBtn">✕</button>
-    </div>
+    <div class="modal-head"><h2>➕ Nuevo pedido</h2><button class="btn ghost" id="closeNewBtn" onclick="document.getElementById('newOrderModal').classList.add('hidden')">✕</button></div>
     <div class="modal-body">
-
       <div class="seg" id="segType">
         <button class="seg-btn on" data-t="restaurante">🍽 Restaurante</button>
         <button class="seg-btn" data-t="llevar">🛍 Para llevar</button>
         <button class="seg-btn" data-t="domicilio">🛵 Domicilio</button>
       </div>
-
-      <div class="frow" id="rowMesa">
-        <label>Mesa</label>
-        <input type="number" id="noMesa" value="1" min="1">
+      <div class="frow" id="rowMesa"><label>Mesa</label><input type="number" id="noMesa" value="1" min="1"></div>
+      <div class="frow"><label>Nombre (opcional)</label><input type="text" id="noName" placeholder="Nombre del cliente"></div>
+      <div class="frow" id="rowPhone"><label>Teléfono</label><input type="text" id="noPhone" placeholder="999 000 0000"></div>
+      <div class="frow" id="rowAddr"><label>Dirección</label><input type="text" id="noAddr" placeholder="Calle, número, colonia..."></div>
+      <div class="frow"><label>Pago</label>
+        <select id="noPay"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select>
       </div>
-
-      <div class="frow">
-        <label>Nombre (opcional)</label>
-        <input type="text" id="noName" placeholder="Nombre del cliente">
-      </div>
-
-      <div class="frow" id="rowPhone">
-        <label>Teléfono</label>
-        <input type="text" id="noPhone" placeholder="999 000 0000">
-      </div>
-
-      <div class="frow" id="rowAddr">
-        <label>Dirección</label>
-        <input type="text" id="noAddr" placeholder="Calle, número, colonia...">
-      </div>
-
-      <div class="frow">
-        <label>Pago</label>
-        <select id="noPay">
-          <option>Efectivo</option>
-          <option>Tarjeta</option>
-          <option>Transferencia</option>
-        </select>
-      </div>
-
       <div class="picker">
         <input type="text" id="noSearch" placeholder="🔍 Buscar platillo...">
         <div class="tabs" id="noTabs"></div>
         <div class="p-grid" id="noGrid"></div>
-        <div class="variant-overlay hidden" id="noVariant">
-          <div class="variant-card" id="noVariantList"></div>
-        </div>
+        <div class="variant-overlay hidden" id="noVariant"><div class="variant-card" id="noVariantList"></div></div>
       </div>
-
-      <div class="frow">
-        <label>Notas</label>
-        <input type="text" id="noNotes" placeholder="Ej. sin cebolla">
-      </div>
-
+      <div class="frow"><label>Notas</label><input type="text" id="noNotes" placeholder="Ej. sin cebolla"></div>
       <div class="no-cart">
         <div class="no-cart-head"><h3>Pedido</h3><button class="btn ghost" id="noClear">Vaciar</button></div>
         <div id="noItems"></div>
         <div class="no-total">Total: <b id="noTotal">$0</b></div>
       </div>
-
     </div>
-    <div class="modal-foot">
-      <button class="btn btn-primary" id="saveOrderBtn">📨 Guardar y enviar a cocina</button>
-    </div>
+    <div class="modal-foot"><button class="btn btn-primary" id="saveOrderBtn" onclick="saveNewOrder()">📨 Guardar y enviar a cocina</button></div>
   </div>
 </div>
 
-<div class="modal hidden" id="usersModal">
-  <div class="modal-card">
-    <div class="modal-head">
-      <h2>👥 Gestión de usuarios</h2>
-      <button class="btn ghost" id="closeUsersBtn">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="frow">
-        <label>Usuario</label>
-        <input type="text" id="umUser" placeholder="Nombre de usuario">
-      </div>
-      <div class="frow">
-        <label>Nombre completo</label>
-        <input type="text" id="umName" placeholder="Ej. María López">
-      </div>
-      <div class="frow">
-        <label>Contraseña</label>
-        <input type="password" id="umPass" placeholder="Mínimo 4 caracteres">
-      </div>
-      <div class="frow">
-        <label>Rol</label>
-        <select id="umRol">
-          <option value="cajero">Cajero</option>
-          <option value="admin">Administrador</option>
-          <option value="cocina">Cocina</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" id="addUserBtn" style="width:100%;margin-top:12px">➕ Agregar usuario</button>
-      <div style="margin-top:16px">
-        <h3>Usuarios</h3>
-        <div id="usersList"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="productsModal">
-  <div class="modal-card" style="max-width:600px">
-    <div class="modal-head">
-      <h2>📦 Gestión de productos</h2>
-      <button class="btn ghost" id="closeProductsBtn">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="frow"><label>Categoría</label><input type="text" id="pmCat" placeholder="Ej. Entradas"></div>
-      <div class="frow"><label>Nombre</label><input type="text" id="pmName" placeholder="Nombre del platillo"></div>
-      <div class="frow"><label>Precio</label><input type="number" id="pmPrice" placeholder="0" min="0"></div>
-      <div class="frow"><label>Estación</label><input type="text" id="pmEstacion" placeholder="Ej. cocina, sushi, bebidas" list="pmEstList"><datalist id="pmEstList"></datalist></div>
-      <div class="frow"><label>Descripción</label><input type="text" id="pmDesc" placeholder="Opcional"></div>
-      <button class="btn btn-primary" id="addProductBtn" style="width:100%;margin-top:12px">➕ Agregar producto</button>
-      <div style="margin-top:16px"><input type="text" id="pmSearch" placeholder="🔍 Buscar producto..." style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:10px"></div>
-      <div id="productsList" style="margin-top:10px;max-height:400px;overflow-y:auto"></div>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="turnoModal">
-  <div class="modal-card" style="max-width:420px">
-    <div class="modal-head">
-      <h2 id="turnoTitle">🕐 Abrir turno</h2>
-      <button class="btn ghost" id="closeTurnoBtn">✕</button>
-    </div>
-    <div class="modal-body" id="turnoBody"></div>
-  </div>
-</div>
-
+<!-- Modal Cobro -->
 <div class="modal hidden" id="cobroModal">
   <div class="modal-card" style="max-width:400px">
-    <div class="modal-head">
-      <h2>💵 Cobrar pedido</h2>
-      <button class="btn ghost" id="closeCobroBtn">✕</button>
-    </div>
+    <div class="modal-head"><h2>💵 Cobrar pedido</h2><button class="btn ghost" id="closeCobroBtn" onclick="document.getElementById('cobroModal').classList.add('hidden')">✕</button></div>
     <div class="modal-body">
-      <div id="cobroInfo" style="text-align:center;margin-bottom:16px"></div>
-      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px">MÉTODO DE PAGO</label>
+      <div id="cobroInfo" style="text-align:center;margin-bottom:14px"></div>
+      <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:8px;text-transform:uppercase;font-weight:700;letter-spacing:.5px">Método de pago</label>
       <div class="pay-methods" id="payMethods">
         <button class="pay-btn" data-m="efectivo">💵<span>Efectivo</span></button>
         <button class="pay-btn" data-m="tarjeta">💳<span>Tarjeta</span></button>
@@ -221,16 +190,194 @@
         <button class="pay-btn" data-m="rappi">📦<span>Rappi</span></button>
       </div>
       <div id="cobroFields" style="margin-top:14px"></div>
-      <button class="btn btn-green" id="confirmCobroBtn" style="width:100%;margin-top:14px;padding:13px;font-size:15px">💵 Confirmar cobro</button>
+      <button class="btn btn-green" id="confirmCobroBtn" style="width:100%;margin-top:14px;padding:13px;font-size:14px;font-weight:800" onclick="confirmarCobro()">💵 Confirmar cobro</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal Reportes -->
+<div class="modal hidden" id="reportesModal">
+  <div class="modal-card" style="max-width:720px">
+    <div class="modal-head"><h2>📊 Reportes</h2><button class="btn ghost" id="closeReportesBtn">✕</button></div>
+    <div class="modal-body">
+      <div class="seg" id="reporteTabs" style="margin-bottom:14px">
+        <button class="seg-btn on" data-rt="hoy">Hoy</button>
+        <button class="seg-btn" data-rt="semana">7 días</button>
+        <button class="seg-btn" data-rt="mes">30 días</button>
+        <button class="seg-btn" data-rt="tops">Más vendidos</button>
+      </div>
+      <div id="reporteContent">
+        <div class="stats-row" id="reporteResumen">
+          <div class="stat-card"><span class="sc-value" id="rPedidos">--</span><span class="sc-label">pedidos</span></div>
+          <div class="stat-card"><span class="sc-value" id="rIngresos">--</span><span class="sc-label">ingresos</span></div>
+          <div class="stat-card"><span class="sc-value" id="rTicket">--</span><span class="sc-label">ticket promedio</span></div>
+        </div>
+        <div style="height:260px"><canvas id="reporteChart"></canvas></div>
+        <div id="topsTable" style="margin-top:14px;display:none"></div>
+        <div class="stats-row" style="margin-top:6px">
+          <div class="stat-card"><span class="sc-label">Efectivo</span><span class="sc-value" id="rEfectivo" style="font-size:16px">--</span></div>
+          <div class="stat-card"><span class="sc-label">Tarjeta</span><span class="sc-value" id="rTarjeta" style="font-size:16px">--</span></div>
+          <div class="stat-card"><span class="sc-label">Transf.</span><span class="sc-value" id="rTransf" style="font-size:16px">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gastos -->
+<div class="modal hidden" id="gastosModal">
+  <div class="modal-card" style="max-width:460px">
+    <div class="modal-head"><h2>💸 Gastos</h2><button class="btn ghost" id="closeGastosBtn">✕</button></div>
+    <div class="modal-body">
+      <div class="stats-row">
+        <div class="stat-card"><span class="sc-value" id="gHoy">$0</span><span class="sc-label">gastos hoy</span></div>
+        <div class="stat-card"><span class="sc-value" id="gSemana">$0</span><span class="sc-label">esta semana</span></div>
+      </div>
+      <div class="frow"><label>Categoría</label><select id="gmCat"><option>Insumos</option><option>Servicios</option><option>Nómina</option><option>Mantenimiento</option><option>Otros</option></select></div>
+      <div class="frow"><label>Monto</label><input type="number" id="gmMonto" placeholder="0" min="1"></div>
+      <div class="frow"><label>Descripción</label><input type="text" id="gmDesc" placeholder="Ej. Compra de verduras"></div>
+      <button class="btn btn-primary" id="saveGastoBtn" style="width:100%;margin-top:12px;padding:12px;font-weight:800">💾 Registrar gasto</button>
+      <div style="margin-top:16px;max-height:260px;overflow-y:auto" id="gastosList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Usuarios -->
+<div class="modal hidden" id="usersModal">
+  <div class="modal-card">
+    <div class="modal-head"><h2>👥 Gestión de usuarios</h2><button class="btn ghost" id="closeUsersBtn" onclick="document.getElementById('usersModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body">
+      <div class="frow"><label>Usuario</label><input type="text" id="umUser" placeholder="Nombre de usuario"></div>
+      <div class="frow"><label>Nombre completo</label><input type="text" id="umName" placeholder="Ej. María López"></div>
+      <div class="frow"><label>Contraseña</label><input type="password" id="umPass" placeholder="Mínimo 4 caracteres"></div>
+      <div class="frow"><label>Rol</label><select id="umRol">
+        <option value="admin">Administrador - acceso total</option>
+        <option value="cajero">Cajero - cobrar, pedidos, reportes</option>
+        <option value="cocina">Cocina - solo KDS y estados</option>
+        <option value="mesero">Mesero - tomar pedidos</option>
+      </select></div>
+      <button class="btn btn-primary" id="addUserBtn" onclick="addUser()" style="width:100%;margin-top:12px;padding:12px;font-weight:800">➕ Crear usuario</button>
+      <div style="margin-top:16px"><h3 style="font-size:13px;color:var(--muted);margin-bottom:8px">Usuarios existentes</h3><div id="usersList"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Productos -->
+<div class="modal hidden" id="productsModal">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-head"><h2>📦 Gestión de productos</h2><button class="btn ghost" id="closeProductsBtn" onclick="document.getElementById('productsModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body">
+      <div class="frow"><label>Categoría</label><input type="text" id="pmCat" placeholder="Ej. Entradas"></div>
+      <div class="frow"><label>Nombre</label><input type="text" id="pmName" placeholder="Nombre del platillo"></div>
+      <div class="frow"><label>Precio</label><input type="number" id="pmPrice" placeholder="0" min="0"></div>
+      <div class="frow"><label>Estación</label><input type="text" id="pmEstacion" placeholder="Ej. cocina, sushi, bebidas" list="pmEstList"><datalist id="pmEstList"></datalist></div>
+      <div class="frow"><label>Stock (inventario)</label><input type="number" id="pmStock" placeholder="Cantidad disponible" min="0"></div>
+      <div class="frow"><label>Notas de preparación</label><input type="text" id="pmPrep" placeholder="Ej. cortar en 8 piezas, salsa aparte"></div>
+      <div class="frow"><label>Descripción</label><input type="text" id="pmDesc" placeholder="Opcional"></div>
+      <button class="btn btn-primary" id="addProductBtn" onclick="addProduct()" style="width:100%;margin-top:12px;padding:12px;font-weight:800">➕ Agregar producto</button>
+      <div style="margin-top:16px"><input type="text" id="pmSearch" placeholder="🔍 Buscar producto..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px"></div>
+      <div id="productsList" style="margin-top:10px;max-height:400px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Turno -->
+<div class="modal hidden" id="turnoModal">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-head"><h2 id="turnoTitle">🕐 Turno</h2><button class="btn ghost" id="closeTurnoBtn">✕</button></div>
+    <div class="modal-body" id="turnoBody"></div>
   </div>
 </div>
 
 <div class="toast hidden" id="toast"></div>
 <div class="print-area" id="printArea"></div>
 
+<!-- Modal Reimpresión selectiva -->
+<div class="modal hidden" id="reprintModal">
+  <div class="modal-card" style="max-width:440px">
+    <div class="modal-head">
+      <h2>🖨 Reimprimir productos</h2>
+      <button class="btn ghost" id="closeReprintBtn" onclick="document.getElementById('reprintModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="chk sel-all" style="display:flex;align-items:center;gap:8px;padding:8px 0;margin-bottom:8px;cursor:pointer;font-weight:800">
+        <input type="checkbox" checked> Seleccionar todo
+      </label>
+      <div id="reprintItems" style="max-height:360px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="confirmReprintBtn" onclick="confirmarReimpresion()">🖨 Imprimir seleccionados</button>
+    </div>
+  </div>
+</div>
+
 <script src="../js/config/brand-config.js"></script>
 <script src="../js/data/menu-data.js"></script>
-<script src="admin.js?v=10"></script>
+<script>
+// ===== LOGIN =====
+var LOGIN_API = "https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders";
+var LOGIN_HDR = {"apikey":"sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf","Authorization":"Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf"};
+var LOGIN_SESSION = "sakuraAdmin";
+
+function _loginHash(text){
+  var enc = new TextEncoder();
+  return crypto.subtle.digest("SHA-256", enc.encode(text)).then(function(buf){
+    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
+  }).catch(function(){ return _sha256pure(text); });
+}
+// Fallback SHA-256 puro
+function _sha256pure(msg){
+  function r(x,n){return(x>>>n)|(x<<(32-n))}
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19],m=[];
+  var i,l=msg.length,nb=((l+8)>>6)+1,i2,w,a,b,c,d,e,f,g,h;
+  for(i=0;i<nb*16;i++)m[i]=0;
+  for(i=0;i<l;i++)m[i>>2]|=msg.charCodeAt(i)<<(24-(i%4)*8);
+  m[i>>2]|=0x80<<(24-(i%4)*8);m[nb*16-2]=l*8;
+  for(i=0;i<nb*16;i+=16){a=H[0];b=H[1];c=H[2];d=H[3];e=H[4];f=H[5];g=H[6];h=H[7];
+    for(var j=0;j<64;j++){
+      var s0,s1,maj,t1,t2,ch,S1,S0;
+      if(j<16)w=j;else{w=r(m[i+j-2],17)^r(m[i+j-2],19)^(m[i+j-2]>>>10);m[i+j]=(m[i+j-16]||0)+w+(m[i+j-7]||0)+(r(m[i+j-15],7)^r(m[i+j-15],18)^(m[i+j-15]>>>3))|0}
+      S1=r(e,6)^r(e,11)^r(e,25);ch=(e&f)^((~e)&g);t1=h+S1+ch+K[j]+m[i+j]|0;S0=r(a,2)^r(a,13)^r(a,22);maj=(a&b)^(a&c)^(b&c);t2=S0+maj;h=g;g=f;f=e;e=d+t1|0;d=c;c=b;b=a;a=t1+t2|0}
+    H[0]=H[0]+a|0;H[1]=H[1]+b|0;H[2]=H[2]+c|0;H[3]=H[3]+d|0;H[4]=H[4]+e|0;H[5]=H[5]+f|0;H[6]=H[6]+g|0;H[7]=H[7]+h|0}
+  var out="";for(i=0;i<8;i++)out+=((H[i]>>>24)&0xff).toString(16).padStart(2,"0")+((H[i]>>>16)&0xff).toString(16).padStart(2,"0")+((H[i]>>>8)&0xff).toString(16).padStart(2,"0")+(H[i]&0xff).toString(16).padStart(2,"0");
+  return Promise.resolve(out);
+}
+
+async function _doLogin(){
+  var u=document.getElementById("loginUser"),p=document.getElementById("loginPass"),btn=document.getElementById("loginBtn");
+  if(!u||!p||!u.value.trim()||!p.value)return;
+  if(btn){btn.textContent="Verificando...";btn.disabled=true}
+  try{
+    // 1. Obtener usuario de Supabase
+    var user = await new Promise(function(resolve,reject){
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", LOGIN_API.replace("/orders","/usuarios")+"?username=eq."+encodeURIComponent(u.value.trim())+"&select=*&limit=1",true);
+      xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+      xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
+      xhr.timeout=8000;
+      xhr.onload=function(){if(xhr.status===200){var d=JSON.parse(xhr.responseText);resolve(d[0]||null)}else{reject(new Error("HTTP "+xhr.status))}};
+      xhr.onerror=function(){reject(new Error("Red"))};
+      xhr.ontimeout=function(){reject(new Error("Timeout"))};
+      xhr.send();
+    });
+    // 2. Validar
+    if(!user){if(btn)btn.textContent="No encontrado";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
+    if(!user.activo){if(btn)btn.textContent="Inactivo";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
+    // 3. Hash
+    var h = await _loginHash(p.value);
+    if(user.password_hash !== h){if(btn)btn.textContent="Contrasena incorrecta";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
+    // 4. OK
+    if(btn)btn.textContent="Entrando...";
+    localStorage.setItem(LOGIN_SESSION,JSON.stringify({username:user.username,nombre:user.nombre,rol:user.rol}));
+    document.getElementById("pinScreen").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    try { initApp(); } catch(e) { alert(e.message); }
+  }catch(err){if(btn){btn.textContent="Error: "+(err.message||err);btn.disabled=false}}
+}
+(function w(){var lb=document.getElementById("loginBtn"),lp=document.getElementById("loginPass");if(lb&&lp){lb.addEventListener("click",_doLogin);lp.addEventListener("keydown",function(e){if(e.key==="Enter")_doLogin()})}else{setTimeout(w,50)}})();
+if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){var tip=document.getElementById("installTip");if(tip)tip.style.display="block";}
+</script>
+<script src="admin.js?v=f"></script>
 </body>
 </html>

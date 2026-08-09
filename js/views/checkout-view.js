@@ -105,8 +105,8 @@
       const form = this._form();
       if (!form) return;
       const data = this.checkout.orderData(this.cart.items, this.loyalty.line(), form);
-      window.open(data.url, "_blank");
       this.checkout.recordOrder(data, form, this.cart.items);
+      window.open(data.url, "_blank");
       this.loyalty.registerVisit();
       this.onSent && this.onSent();
     }
