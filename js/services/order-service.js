@@ -91,8 +91,7 @@
           marca: record.marca || "",
           items: record.items,
           total: record.total,
-          status: "nuevo",
-          source: "online"
+          status: "nuevo"
         })
       }).then(r => r.ok).catch(() => false);
     }
