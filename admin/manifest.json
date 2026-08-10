@@ -1,0 +1,13 @@
+{
+  "name": "Sakura Sushi · Panel",
+  "short_name": "Sakura POS",
+  "description": "Panel de administración de pedidos",
+  "start_url": "/admin/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#e8367c",
+  "background_color": "#1c0d14",
+  "icons": [
+    { "src": "../logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

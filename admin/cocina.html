@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1c0d14">
+<title>KDS · Sakura Sushi</title>
+<link rel="icon" type="image/png" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="cocina.css">
+</head>
+<body>
+
+<div class="pin-screen" id="pinScreen">
+  <div class="pin-card">
+    <h1>🍳 Pantalla de cocina</h1>
+    <p>Sakura Sushi Paseos Mid</p>
+    <input type="text" id="loginUser" placeholder="Usuario" autocomplete="off" autofocus>
+    <input type="password" id="loginPass" placeholder="Contraseña">
+    <button class="btn btn-primary" id="loginBtn">Entrar</button>
+    <div class="pin-err hidden" id="loginErr">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
+
+<div class="kds hidden" id="kdsApp">
+  <header>
+    <div class="hd-left">
+      <span class="hd-clock" id="hdClock"></span>
+      <h1>🍳 Mandala Sushi · Cocina</h1>
+    </div>
+    <div class="hd-actions">
+      <span class="hd-user" id="hdUser"></span>
+      <button class="btn ghost fullscreen-btn" id="fullscreenBtn" title="Pantalla completa">⛶</button>
+      <label class="switch" title="Sonido">
+        <input type="checkbox" id="soundToggle" checked>
+        <span>🔔</span>
+      </label>
+      <label class="switch" title="Auto-pasar a Listo al imprimir">
+        <input type="checkbox" id="autoNextToggle">
+        <span>⏩</span>
+      </label>
+      <button class="btn ghost" id="logoutBtn">Salir</button>
+    </div>
+  </header>
+
+  <div class="columns" id="columns">
+    <div class="col col-nuevo">
+      <div class="col-head"><span class="col-dot dot-red"></span>Nuevos <b id="cntNuevo">0</b></div>
+      <div class="col-body" id="colNuevo"></div>
+    </div>
+    <div class="col col-preparando">
+      <div class="col-head"><span class="col-dot dot-yellow"></span>Preparando <b id="cntPreparando">0</b></div>
+      <div class="col-body" id="colPreparando"></div>
+    </div>
+    <div class="col col-listo">
+      <div class="col-head"><span class="col-dot dot-green"></span>Listos <b id="cntListo">0</b></div>
+      <div class="col-body" id="colListo"></div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <span id="refreshNote">Conectando...</span>
+    <span class="sound-warn hidden" id="soundWarn">🔇 Silenciado</span>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="../js/config/brand-config.js"></script>
+<script src="cocina.js"></script>
+</body>
+</html>

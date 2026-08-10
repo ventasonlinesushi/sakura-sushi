@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head><body style="font-family:monospace;padding:20px">
+<h2>Diagnostico admin.js</h2>
+<div id="out" style="white-space:pre-wrap"></div>
+<script>
+var o = document.getElementById("out");
+var log = function(s) { o.innerHTML += s + "\n"; };
+var errors = [];
+
+if (new URLSearchParams(location.search).get("reset") === "1" && "serviceWorker" in navigator) {
+    log("Restableciendo cache local...");
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+        return Promise.all(regs.map(function(reg) { return reg.unregister(); }));
+    }).then(function() {
+        return caches.keys().then(function(keys) {
+            return Promise.all(keys.map(function(key) { return caches.delete(key); }));
+        });
+    }).then(function() {
+        location.replace("test-load.html?verified=" + Date.now());
+    });
+}
+
+window.onerror = function(msg, url, line, col, err) {
+    errors.push("SYNTAX/PARSE ERROR: " + msg + " | url=" + url + " | line=" + line + ":" + col);
+    return false;
+};
+log("1. Inicio diagnostico");
+log("   URL admin.js: admin.js?v=3");
+log("   Hora: " + new Date().toLocaleTimeString());
+log("---");
+</script>
+<script src="admin.js?v=3" onerror="document.getElementById('out').innerHTML += 'FAILED TO LOAD admin.js\n'"></script>
+<script>
+log("2. admin.js cargado");
+log("   typeof initApp: " + typeof initApp);
+log("   typeof PosAppInit: " + typeof PosAppInit);
+log("   typeof initAppPublic: " + typeof initAppPublic);
+log("   typeof fetchOrders: " + typeof fetchOrders);
+log("   typeof PosTurno: " + typeof PosTurno);
+log("---");
+if(typeof initApp === "function") {
+    log("3. initApp ES funcion - OK");
+} else {
+    log("3. initApp NO es funcion - FALLO");
+    log("   Posibles causas: admin.js no cargo o tiene error de sintaxis");
+}
+if(errors.length > 0) {
+    log("---");
+    log("ERRORES CAPTURADOS:");
+    errors.forEach(function(e) { log("   " + e); });
+}
+log("---");
+log("4. DIAGNOSTICO COMPLETO");
+</script>
+</body></html>

@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="admin.css?v=pos7">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -62,10 +62,13 @@
       </div>
     </div>
     <div class="hd-actions">
+      <span id="printStatus" style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;font-weight:600">🖨️</span>
       <button class="turno-badge" id="turnoBadge" onclick="if(window.PosTurno)PosTurno()">🔴 Abrir turno</button>
       <button class="btn ghost" id="cocinaBtn" title="Pantalla de cocina" onclick="window.open('cocina.html','_blank')">🍳 Cocina</button>
       <button class="btn ghost" id="reportesBtn" title="Reportes" onclick="document.getElementById('reportesModal').classList.remove('hidden');cargarReportes('hoy')">📊</button>
       <button class="btn ghost" id="gastosBtn" title="Gastos" onclick="document.getElementById('gastosModal').classList.remove('hidden');cargarGastos()">💸</button>
+      <button class="btn ghost" id="crmBtn" title="Clientes" onclick="abrirCRM()">👥</button>
+      <span id="invAlert" style="display:none;background:#fef2f2;color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="document.getElementById('productsModal').classList.remove('hidden');fetchProducts()"></span>
       <button class="btn ghost" id="usersBtn" style="display:none" onclick="document.getElementById('usersModal').classList.remove('hidden');fetchUsers()">👥</button>
       <button class="btn ghost" id="productsBtn" style="display:none" onclick="document.getElementById('productsModal').classList.remove('hidden');fetchProducts()">📦</button>
       <label class="switch" title="Sonido al llegar pedido">
@@ -100,6 +103,7 @@
   <div class="stats-row" id="statsRow">
     <div class="stat-card"><span class="sc-value" id="stNuevos">0</span><span class="sc-label">Nuevos</span></div>
     <div class="stat-card"><span class="sc-value" id="stActivos">0</span><span class="sc-label">Activos</span></div>
+    <div class="stat-card accent" style="border-left:4px solid var(--red)"><span class="sc-value" id="stPendientes" style="color:var(--red)">0</span><span class="sc-label">Pendientes cobro</span></div>
     <div class="stat-card"><span class="sc-value" id="stHoy">0</span><span class="sc-label">Hoy</span></div>
     <div class="stat-card"><span class="sc-value" id="stIngresos">$0</span><span class="sc-label">Ingresos hoy</span><span class="sc-sub" id="stTicketProm">--</span></div>
   </div>
@@ -109,6 +113,19 @@
     <div class="filters-bar">
       <label class="chk" id="filtroSoloNuevos"><input type="checkbox" id="onlyNew"> Solo nuevos</label>
       <label class="chk"><input type="checkbox" id="showArch"> Ver archivados</label>
+      <div id="filtroCobradas" style="display:none;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+        <button class="btn-sm" data-cf="todas" style="font-weight:800;background:var(--primary);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">Todas</button>
+        <button class="btn-sm" data-cf="hoy" style="font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;background:#fff">Hoy</button>
+        <button class="btn-sm" data-cf="ayer" style="font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;background:#fff">Ayer</button>
+        <button class="btn-sm" data-cf="semana" style="font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;background:#fff">7d</button>
+        <button class="btn-sm" data-cf="mes" style="font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;background:#fff">30d</button>
+        <button class="btn-sm" data-cf="personalizado" id="btnFiltroPers" style="font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;background:#fff">📅</button>
+        <span id="filtroFechas" style="display:none;gap:4px;align-items:center">
+          <input type="date" id="cobradaDesde" style="border:1px solid var(--border);border-radius:6px;padding:2px 4px;font-size:10px;width:110px" onchange="aplicarFiltroFecha()">
+          <span style="font-size:10px">a</span>
+          <input type="date" id="cobradaHasta" style="border:1px solid var(--border);border-radius:6px;padding:2px 4px;font-size:10px;width:110px" onchange="aplicarFiltroFecha()">
+        </span>
+      </div>
       <span class="filter-spacer"></span>
       <span class="refresh-note" id="refreshNote">Conectando...</span>
     </div>
@@ -185,6 +202,7 @@
         <button class="pay-btn" data-m="efectivo">💵<span>Efectivo</span></button>
         <button class="pay-btn" data-m="tarjeta">💳<span>Tarjeta</span></button>
         <button class="pay-btn" data-m="transferencia">🏦<span>Transf.</span></button>
+        <button class="pay-btn" data-m="online">🌐<span>Online</span></button>
         <button class="pay-btn" data-m="didi">🛵<span>DIDI</span></button>
         <button class="pay-btn" data-m="uber">🚗<span>Uber</span></button>
         <button class="pay-btn" data-m="rappi">📦<span>Rappi</span></button>
@@ -205,6 +223,9 @@
         <button class="seg-btn" data-rt="semana">7 días</button>
         <button class="seg-btn" data-rt="mes">30 días</button>
         <button class="seg-btn" data-rt="tops">Más vendidos</button>
+        <button class="seg-btn" data-rt="hora" onclick="event.stopPropagation();cargarReporteAvanzado('hora')">x Hora</button>
+        <button class="seg-btn" data-rt="mesero" onclick="event.stopPropagation();cargarReporteAvanzado('mesero')">x Mesero</button>
+        <button class="seg-btn" data-rt="pago" onclick="event.stopPropagation();cargarReporteAvanzado('pago')">x Pago</button>
       </div>
       <div id="reporteContent">
         <div class="stats-row" id="reporteResumen">
@@ -214,10 +235,15 @@
         </div>
         <div style="height:260px"><canvas id="reporteChart"></canvas></div>
         <div id="topsTable" style="margin-top:14px;display:none"></div>
+        <div id="reporteAvanzadoContent" style="margin-top:14px;display:none"></div>
         <div class="stats-row" style="margin-top:6px">
           <div class="stat-card"><span class="sc-label">Efectivo</span><span class="sc-value" id="rEfectivo" style="font-size:16px">--</span></div>
           <div class="stat-card"><span class="sc-label">Tarjeta</span><span class="sc-value" id="rTarjeta" style="font-size:16px">--</span></div>
           <div class="stat-card"><span class="sc-label">Transf.</span><span class="sc-value" id="rTransf" style="font-size:16px">--</span></div>
+        </div>
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+          <button class="btn ghost" onclick="mostrarReabiertas()" style="width:100%">🔓 Ver cuentas reabiertas</button>
+          <div id="reabiertasTable" style="margin-top:10px;display:none;max-height:200px;overflow-y:auto"></div>
         </div>
       </div>
     </div>
@@ -282,15 +308,77 @@
 </div>
 
 <!-- Modal Turno -->
-<div class="modal hidden" id="turnoModal">
+<div class="modal hidden" id="cajaModal">
+  <div class="modal-card" style="max-width:520px;max-height:90vh;overflow-y:auto">
+    <div class="modal-head"><h2 id="cajaTitle">💰 CAJA</h2><button class="btn ghost" onclick="document.getElementById('cajaModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body" id="cajaBody" style="padding:14px 18px"></div>
+  </div>
+</div>
+
+<!-- Modal Movimiento (entrada/salida) -->
+<div class="modal hidden" id="movimientoModal">
+  <div class="modal-card" style="max-width:360px">
+    <div class="modal-head"><h2>💰 Movimiento</h2><button class="btn ghost" onclick="document.getElementById('movimientoModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body">
+      <div class="seg" style="margin-bottom:10px">
+        <button class="seg-btn on" id="movEntrada" onclick="document.getElementById('movTipo').value='entrada';this.classList.add('on');document.getElementById('movSalida').classList.remove('on')">➕ Entrada</button>
+        <button class="seg-btn" id="movSalida" onclick="document.getElementById('movTipo').value='salida';this.classList.add('on');document.getElementById('movEntrada').classList.remove('on')">➖ Salida</button>
+      </div>
+      <input type="hidden" id="movTipo" value="entrada">
+      <div class="frow"><label>Concepto</label><input type="text" id="movConcepto" placeholder="Ej. Cambio, insumos..."></div>
+      <div class="frow"><label>Monto</label><input type="number" id="movMonto" placeholder="0" min="1"></div>
+      <button class="btn btn-primary" onclick="guardarMovimiento()" style="width:100%;margin-top:10px;padding:12px;font-weight:800">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Historial detalle -->
+<div class="modal hidden" id="historialModal">
+  <div class="modal-card" style="max-width:550px;max-height:85vh;overflow-y:auto">
+    <div class="modal-head"><h2>📋 Historial de cortes</h2><button class="btn ghost" onclick="document.getElementById('historialModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body" id="historialBody" style="padding:14px 18px"></div>
+  </div>
+</div>
+
+<!-- Modal CRM -->
+<div class="modal hidden" id="crmModal">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-head"><h2>👥 Clientes frecuentes</h2><button class="btn ghost" onclick="document.getElementById('crmModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body" id="crmBody" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="editModal">
   <div class="modal-card" style="max-width:420px">
-    <div class="modal-head"><h2 id="turnoTitle">🕐 Turno</h2><button class="btn ghost" id="closeTurnoBtn">✕</button></div>
-    <div class="modal-body" id="turnoBody"></div>
+    <div class="modal-head"><h2>✏️ Editar pedido</h2><button class="btn ghost" onclick="document.getElementById('editModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body" id="edBody"></div>
+    <div class="modal-foot"><button class="btn btn-primary" onclick="PosEditSave()">💾 Guardar cambios</button></div>
   </div>
 </div>
 
 <div class="toast hidden" id="toast"></div>
 <div class="print-area" id="printArea"></div>
+
+<!-- Modal División de Cuenta -->
+<div class="modal hidden" id="splitModal">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-head">
+      <h2>✂️ Dividir cuenta</h2>
+      <button class="btn ghost" id="closeSplitBtn" onclick="document.getElementById('splitModal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="splitInfo" style="margin-bottom:12px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <select id="splitPersonas" onchange="splitUpdatePersonas()" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:8px;font-weight:700">
+          <option value="2">2 personas</option><option value="3">3 personas</option><option value="4">4 personas</option><option value="5">5 personas</option><option value="6">6 personas</option>
+        </select>
+        <button class="btn btn-primary" onclick="splitImprimir()" style="padding:8px 16px">🖨 Imprimir</button>
+      </div>
+      <div id="splitItems" style="max-height:400px;overflow-y:auto"></div>
+      <div id="splitTotales" style="margin-top:12px;border-top:2px solid var(--primary);padding-top:10px"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Reimpresión selectiva -->
 <div class="modal hidden" id="reprintModal">
@@ -369,7 +457,7 @@ async function _doLogin(){
     if(user.password_hash !== h){if(btn)btn.textContent="Contrasena incorrecta";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
     // 4. OK
     if(btn)btn.textContent="Entrando...";
-    localStorage.setItem(LOGIN_SESSION,JSON.stringify({username:user.username,nombre:user.nombre,rol:user.rol}));
+    localStorage.setItem(LOGIN_SESSION,JSON.stringify({username:user.username,nombre:user.nombre,rol:user.rol,password_hash:user.password_hash}));
     document.getElementById("pinScreen").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     try { initApp(); } catch(e) { alert(e.message); }
@@ -378,6 +466,6 @@ async function _doLogin(){
 (function w(){var lb=document.getElementById("loginBtn"),lp=document.getElementById("loginPass");if(lb&&lp){lb.addEventListener("click",_doLogin);lp.addEventListener("keydown",function(e){if(e.key==="Enter")_doLogin()})}else{setTimeout(w,50)}})();
 if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){var tip=document.getElementById("installTip");if(tip)tip.style.display="block";}
 </script>
-<script src="admin.js?v=f"></script>
+<script src="admin.js?v=pos7"></script>
 </body>
 </html>
