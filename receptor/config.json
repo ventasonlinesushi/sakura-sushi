@@ -1,0 +1,35 @@
+{
+  "ancho_papel": "58",
+  "marcador": "NUEVO PEDIDO",
+  "impresoras": {
+    "caja": "YICHIP POS-58",
+    "cocina": "YICHIP POS-58",
+    "sushi": "YICHIP POS-58",
+    "bebidas": "YICHIP POS-58",
+    "barra": "YICHIP POS-58"
+  },
+  "categorias_estacion": {
+    "sushi": ["rollo", "temaki", "niguiri", "sashimi", "maki", "furai", "sake", "maguro", "ebi", "urumaki", "sushi"],
+    "bebidas": ["bebida", "agua", "refresco", "nestea", "coca", "fuzetea", "cerveza", "jugo", "te frio", "te helado"],
+    "cocina": []
+  },
+  "supabase": {
+    "url": "https://edquyomwiiaawqslsisd.supabase.co",
+    "key": "sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf"
+  },
+  "intervalo_polling": 6,
+  "marcas": {
+    "sakura": {
+      "empresa": "Sakura Sushi Paseos Mid",
+      "whatsapp": "529993614410",
+      "telefono_mostrar": "999 361 4410",
+      "directorio_pedidos": ".."
+    },
+    "mandala": {
+      "empresa": "Mandala Sushi Caucel",
+      "whatsapp": "529993168027",
+      "telefono_mostrar": "999 316 8027",
+      "directorio_pedidos": ".."
+    }
+  }
+}

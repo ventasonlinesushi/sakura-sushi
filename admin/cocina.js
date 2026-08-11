@@ -1,5 +1,5 @@
 /* ============================================================
-   KDS - Pantalla de cocina para Mandala Sushi.
+    KDS - Pantalla de cocina para Sakura Sushi.
    Columnas: Nuevos | Preparando | Listos
    Mapeo de estados: nuevo→Nuevos, recibido→Preparando, listo→Listos
    ============================================================ */
@@ -21,7 +21,7 @@ const SUPABASE_KEY = "sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf";
   const LIMITE_ROJO = 10 * 60;     // 10 min
 
   const BRAND = (window.PosApp && window.PosApp.brandConfig) || {
-    business: "Mandala Sushi Caucel", marca: "mandala"
+    business: "Sakura Sushi Paseos Mid", marca: "sakura"
   };
 
   const STATUS = { nuevo: "Nuevo", recibido: "Preparando", listo: "Listo" };

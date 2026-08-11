@@ -320,7 +320,7 @@ function abrirReimpresion(o){rpState.order=o;rpState.selected={};(o.items||[]).f
 function confirmarReimpresion(){var o=rpState.order;if(!o)return;var its=(o.items||[]).filter(function(_,i){return rpState.selected[i]});if(!its.length){toast("Selecciona al menos un producto");return}var sub=its.reduce(function(a,it){return a+(it.price||0)*(it.qty||0)},0);printTicket(Object.assign({},o,{items:its,total:sub}));$("reprintModal").classList.add("hidden");}
 
 /* Nuevo pedido */
-function nextFolio(){var max=0;state.orders.forEach(function(o){var n=parseInt(o.folio,10);if(n>max)max=n});var l=parseInt(localStorage.getItem("sakuraAdminFolio")||"0",10);if(l>max)max=l;var n=max+1;localStorage.setItem("sakuraAdminFolio",String(n));return("000"+String(n)).slice(-4);}
+function nextFolio(){var max=0;state.orders.forEach(function(o){var n=parseInt(o.folio,10);if(n>max)max=n});var l=parseInt(localStorage.getItem((BRAND.marca||"store")+"AdminFolio")||"0",10);if(l>max)max=l;var n=max+1;localStorage.setItem((BRAND.marca||"store")+"AdminFolio",String(n));return("000"+String(n)).slice(-4);}
 function catItems(ci){return(MENU[ci]&&MENU[ci].items)||[];}
 function priceOf(it){if(typeof it.price==="number")return money(it.price);var vs=it.variants||[];return"Desde "+money(Math.min.apply(null,vs.map(function(v){return v.price})));}
 function renderTabs(){$("noTabs").innerHTML=MENU.map(function(c,i){return'<button class="tab'+(i===state.pCat?" on":"")+'" data-i="'+i+'">'+esc(c.name)+'</button>';}).join("");}
@@ -442,10 +442,10 @@ function PosReabrir(id){
   crypto.subtle.digest("SHA-256", enc.encode(pass)).then(function(buf){
     var h = Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
     if(user.password_hash!==h){toast("Contrasena incorrecta");return}
-    var log = JSON.parse(localStorage.getItem("sakuraReabrirLog")||"[]");
+  var log = JSON.parse(localStorage.getItem((BRAND.marca||"store")+"ReabrirLog")||"[]");
     log.push({folio:o.folio,orderId:id,usuario:user.nombre,username:user.username,fecha:new Date().toISOString()});
     if(log.length>200) log = log.slice(-200);
-    localStorage.setItem("sakuraReabrirLog",JSON.stringify(log));
+    localStorage.setItem((BRAND.marca||"store")+"ReabrirLog",JSON.stringify(log));
     patchOrder(id,{status:"nuevo"}).then(function(){
       toast("Cuenta #"+o.folio+" reabierta por "+user.nombre);
       refresh();
@@ -1122,7 +1122,7 @@ function addUser(){var username=$("umUser").value.trim(),nombre=$("umName").valu
 
 /* Turno */
 function mostrarReabiertas(){
-  var log = JSON.parse(localStorage.getItem("sakuraReabrirLog")||"[]");
+  var log = JSON.parse(localStorage.getItem((BRAND.marca||"store")+"ReabrirLog")||"[]");
   var el = $("reabiertasTable");
   if(!el) return;
   if(!log.length){ el.style.display="block"; el.innerHTML='<div class="empty-state"><span class="es-text" style="font-size:12px">Sin cuentas reabiertas</span></div>'; return }

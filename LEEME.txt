@@ -1,0 +1,38 @@
+# SAKURA SUSHI PASEOS MID - Sistema de Pedidos
+
+## Instalación
+
+### 1. Instalar Python
+Descargar e instalar Python 3.10+ desde https://python.org
+Marcar "Add Python to PATH" durante la instalación.
+
+### 2. Instalar dependencias
+Abrir terminal (cmd) y ejecutar:
+```
+pip install pywin32
+```
+
+### 3. Instalar la impresora térmica
+- Conectar la YICHIP POS-58 por USB
+- Windows la detecta automáticamente
+- Si no la reconoce, ejecutar el instalador del driver
+
+### 4. Configurar la impresora
+- Doble clic en `configurar-impresora.bat`
+- Seleccionar "YICHIP POS-58" de la lista
+- Se imprime un ticket de prueba
+
+### 5. Iniciar el sistema
+Doble clic en `iniciar.bat`
+
+## Acceso
+- Computadora: http://localhost:3001/admin/
+- Celular/Tablet (mismo WiFi): http://IP-DE-LA-PC:3000/admin/
+- Cocina: http://IP-DE-LA-PC:3000/admin/cocina.html
+
+## Usuarios
+- Admin: admin / admin123
+- Crear más usuarios desde el panel (botón 👥)
+
+## Apagar
+Cerrar la ventana de iniciar.bat
