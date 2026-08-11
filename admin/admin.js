@@ -1,4 +1,4 @@
-/* Panel Mandala Sushi v3 */
+/* Panel Sakura Sushi v3 */
 var SUPABASE_URL = "https://edquyomwiiaawqslsisd.supabase.co";
 var SUPABASE_KEY = "sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf";
 var API = SUPABASE_URL + "/rest/v1/orders";
