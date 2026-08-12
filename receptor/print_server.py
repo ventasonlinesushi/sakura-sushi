@@ -185,7 +185,9 @@ def imprimir_pedido_admin(data):
     err_count = 0
 
     # --- Imprimir por estación ---
-    for est in ESTACIONES:
+    imprimir_estaciones = data.get("print_stations", True)
+    imprimir_cuenta = data.get("print_account", True)
+    for est in ESTACIONES if imprimir_estaciones else ():
         lineas = grupos.get(est) or []
         if not lineas:
             continue
@@ -249,7 +251,7 @@ def imprimir_pedido_admin(data):
             err_count += 1
 
     # --- Imprimir CUENTA completa en CAJA ---
-    if impresora_caja:
+    if impresora_caja and imprimir_cuenta:
         t = printer.Ticket(CONFIG.get("ancho_papel", "58"))
         ancho = t.ancho
         ahora = datetime.datetime.now().strftime("%d/%m/%y %H:%M")

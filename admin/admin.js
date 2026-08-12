@@ -213,9 +213,9 @@ function renderSidePanel(){
   } else {
     if(canDo("cobrar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosCobrar(\''+id+'\')">Cobrar</button>';
     if(canDo("dividir")) acc += '<button class="sp-btn" onclick="PosDividir(\''+id+'\')">✂️ Dividir</button>';
-    if(canDo("editar")) acc += '<button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Editar</button>';
+    if(canDo("editar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosAgregarPlatillos(\''+id+'\')">➕ Agregar platillos</button><button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Datos cuenta</button>';
     if(canDo("comandar")) acc += '<button class="sp-btn" onclick="PosComandar(\''+id+'\')">🖨 Comandar</button>';
-    if(canDo("imprimir")) acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">Imprimir</button>';
+    if(canDo("imprimir")) acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">🧾 Imprimir cuenta</button>';
     if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOff(\''+id+'\')">Salir cancelar</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
     if(canDo("cambiarEstado")) acc += flows;
     if(canDo("archivar")) acc += '<button class="sp-btn" onclick="PosArchivar(\''+id+'\')">Archivar</button>';
@@ -293,13 +293,14 @@ function confirmarCobro(){
 /* Impresion */
 var PRINT_HOST = window.location.hostname;
 
-function printTicket(o){
+function printTicket(o,mode){
   var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}");
   var items = (o.items||[]).map(function(it){
     var prep = localStorage.getItem("prodPrep_"+it.key) || "";
     return {name:it.name,qty:it.qty,price:it.price,desc:it.desc,comment:it.comment||"",prep:prep};
   });
-  var body=JSON.stringify({marca:BRAND.marca,folio:o.folio,items:items,total:o.total,name:o.name,phone:o.phone,order_type:o.order_type,address:o.address,payment:o.payment,notes:o.notes,discount:de.d||0,extra:de.e||0});
+  mode=mode||"account";
+  var body=JSON.stringify({marca:BRAND.marca,folio:o.folio,items:items,total:o.total,name:o.name,phone:o.phone,order_type:o.order_type,address:o.address,payment:o.payment,notes:o.notes,discount:de.d||0,extra:de.e||0,print_stations:mode==="command",print_account:mode==="account"});
   var xhr=new XMLHttpRequest();
   xhr.open("POST","http://"+PRINT_HOST+":5100/print",true);
   xhr.setRequestHeader("Content-Type","application/json");
@@ -320,7 +321,7 @@ function printCancelTicket(order,item){
 /* Reimpresion */
 var rpState={order:null,selected:{}};
 function abrirReimpresion(o){rpState.order=o;rpState.selected={};(o.items||[]).forEach(function(_,i){rpState.selected[i]=true});$("reprintItems").innerHTML=(o.items||[]).map(function(it,i){return'<label class="chk" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" data-ri="'+i+'"'+(rpState.selected[i]?' checked':'')+' onchange="rpState.selected['+i+']=this.checked"><span style="flex:1;font-weight:700;font-size:13px">'+(it.qty||0)+'x '+esc(it.name)+'</span><span style="font-weight:700;color:var(--primary)">'+money((it.price||0)*(it.qty||0))+'</span></label>';}).join("");$("reprintModal").classList.remove("hidden");}
-function confirmarReimpresion(){var o=rpState.order;if(!o)return;var its=(o.items||[]).filter(function(_,i){return rpState.selected[i]});if(!its.length){toast("Selecciona al menos un producto");return}var sub=its.reduce(function(a,it){return a+(it.price||0)*(it.qty||0)},0);printTicket(Object.assign({},o,{items:its,total:sub}));$("reprintModal").classList.add("hidden");}
+function confirmarReimpresion(){var o=rpState.order;if(!o)return;var its=(o.items||[]).filter(function(_,i){return rpState.selected[i]});if(!its.length){toast("Selecciona al menos un producto");return}var sub=its.reduce(function(a,it){return a+(it.price||0)*(it.qty||0)},0);printTicket(Object.assign({},o,{items:its,total:sub}),"account");$("reprintModal").classList.add("hidden");}
 
 /* Nuevo pedido */
 function nextFolio(){var max=0;state.orders.forEach(function(o){var n=parseInt(o.folio,10);if(n>max)max=n});var l=parseInt(localStorage.getItem((BRAND.marca||"store")+"AdminFolio")||"0",10);if(l>max)max=l;var n=max+1;localStorage.setItem((BRAND.marca||"store")+"AdminFolio",String(n));return("000"+String(n)).slice(-4);}
@@ -335,14 +336,16 @@ function toggleCortesia(ix){var c=newOrder.cart[ix];if(!c)return;c.cortesia=!c.c
 function renderCart(){var el=$("noItems");if(!newOrder.cart.length){el.innerHTML='<div class="empty">Agrega platillos</div>';return}el.innerHTML=newOrder.cart.map(function(c,ix){var p=c.cortesia?0:c.price*c.qty;return'<div class="no-item"><span class="no-name">'+esc(c.name)+(c.comment?'<br><small style="color:var(--primary);font-weight:600">'+esc(c.comment)+'</small>':'')+(c.cortesia?'<br><small style="color:var(--green);font-weight:800">CORTESIA</small>':'')+'</span><button class="no-comment" data-ix="'+ix+'" title="Comentario" style="border:none;background:var(--primary-light);color:var(--primary);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;margin-right:2px">E</button><button class="no-cortesia" data-ix="'+ix+'" title="Cortesia" style="border:none;background:'+(c.cortesia?'var(--green)':'var(--bg)')+';color:'+(c.cortesia?'#fff':'var(--muted)')+';border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;margin-right:4px">G</button><div class="no-qty"><button data-ix="'+ix+'" data-d="-1">-</button><b>'+c.qty+'</b><button data-ix="'+ix+'" data-d="1">+</button></div><span class="no-line">'+money(p)+'</span><button class="no-del" data-ix="'+ix+'" data-del="1">X</button></div>';}).join("");$("noTotal").textContent=money(newOrder.cart.reduce(function(a,c){return c.cortesia?a:a+c.price*c.qty},0));}
 function setSegType(t){newOrder.type=t;document.querySelectorAll("#segType .seg-btn").forEach(function(b){b.classList.toggle("on",b.dataset.t===t)});$("rowMesa").classList.toggle("hidden",t!=="restaurante");$("rowPhone").classList.toggle("hidden",t==="restaurante");$("rowAddr").classList.toggle("hidden",t!=="domicilio");}
 function resetNewOrder(){newOrder={type:"restaurante",cart:[]};$("noMesa").value=1;$("noName").value="";$("noPhone").value="";$("noAddr").value="";$("noPay").value="Efectivo";$("noNotes").value="";$("noSearch").value="";state.pCat=0;renderTabs();renderGrid();renderCart();setSegType("restaurante");}
+function PosAgregarPlatillos(id){var o=state.orders.find(function(x){return x.id===id});if(!o||o.status==="cobrado")return;newOrder={type:o.order_type||"restaurante",cart:[],targetId:id,targetOrder:o};$("noName").value=o.name||"";$("noPhone").value=o.phone||"";$("noAddr").value=o.address||"";$("noPay").value=o.payment||"Efectivo";$("noNotes").value="";$("noSearch").value="";if(newOrder.type==="restaurante"){var m=String(o.address||"").match(/(\d+)/);$("noMesa").value=m?m[1]:1}state.pCat=0;renderTabs();renderGrid();renderCart();setSegType(newOrder.type);$("newOrderModal").classList.remove("hidden");toast("Agrega solamente los nuevos platillos")}
 
 function saveNewOrder(){
   if(!newOrder||!newOrder.cart.length){toast("Agrega al menos un platillo");return}
+  if(newOrder.targetId){var original=newOrder.targetOrder,added=newOrder.cart.map(function(c){return{key:c.key,name:c.name,qty:c.qty,price:c.cortesia?0:c.price,desc:c.desc,comment:c.comment||"",cortesia:c.cortesia||false}}),all=(original.items||[]).concat(added),total=all.reduce(function(a,c){return a+(c.price||0)*(c.qty||0)},0),command=Object.assign({},original,{items:added,total:added.reduce(function(a,c){return a+(c.price||0)*(c.qty||0)},0)});patchOrder(original.id,{items:all,total:total}).then(function(){$("newOrderModal").classList.add("hidden");printTicket(command,"command");toast("Platillos agregados a la cuenta #"+original.folio);state.selectedOrderId=original.id;refresh()}).catch(function(){toast("No se pudieron agregar los platillos")});return}
   var t=newOrder.type,mesa=parseInt($("noMesa").value||"1",10),name=($("noName").value||"").trim(),addr="";
   if(t==="restaurante"){addr="Mesa "+(mesa||1);if(!name)name=addr}else if(t==="domicilio"){addr=($("noAddr").value||"").trim()}
   var phone=t==="restaurante"?"":($("noPhone").value||"").trim();
   var rec={folio:nextFolio(),name:name||"Cliente",phone:phone,order_type:t,address:addr,payment:$("noPay").value,notes:($("noNotes").value||"").trim(),salsas:"",palitos:"No",marca:BRAND.marca||"",status:"nuevo",items:newOrder.cart.map(function(c){return{key:c.key,name:c.name,qty:c.qty,price:c.cortesia?0:c.price,desc:c.desc,comment:c.comment||"",cortesia:c.cortesia||false}}),total:newOrder.cart.reduce(function(a,c){return c.cortesia?a:a+c.price*c.qty},0)};
-  saveApi(rec).then(function(){$("newOrderModal").classList.add("hidden");toast("Pedido #"+rec.folio+" enviado");printTicket(rec);refresh()
+  saveApi(rec).then(function(){$("newOrderModal").classList.add("hidden");toast("Pedido #"+rec.folio+" guardado. La cuenta no se imprimio.");printTicket(rec,"command");refresh()
     // Decrementar inventario
     newOrder.cart.forEach(function(c){
       var curr = parseInt(localStorage.getItem("prodStock_"+c.key)) || 0;
@@ -1167,12 +1170,12 @@ function PosComandar(id){
     estaciones[est].push(it);
   });
   var names = Object.keys(estaciones);
-  if(names.length<=1){ printTicket(o); toast("Comanda enviada"); return }
+  if(names.length<=1){ printTicket(o,"command"); toast("Comanda enviada"); return }
   // Print per station
   names.forEach(function(est){
     var its = estaciones[est];
     var sub = Object.assign({}, o, {items:its, total:its.reduce(function(a,it){return a+(it.price||0)*(it.qty||0)},0), name:(o.name||"Cliente")+" ["+est+"]"});
-    printTicket(sub);
+    printTicket(sub,"command");
   });
   toast("Comandas enviadas: "+names.join(", "));
 }
