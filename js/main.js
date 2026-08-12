@@ -102,6 +102,11 @@
   const sb = brand.supabase;
   const ST = PosApp.menuData;
 
+  function staticItem(category, name) {
+    var cat = (ST || []).find(function (c) { return c.name === category; });
+    return cat && (cat.items || []).find(function (item) { return item.name === name; });
+  }
+
   if (sb && sb.url && sb.key) {
     const url = sb.url.replace(/\/$/, "") + "/rest/v1/menu_items?marca=eq." + encodeURIComponent(brand.marca || "") + "&order=categoria,orden";
     fetch(url, { headers: { "apikey": sb.key, "Authorization": "Bearer " + sb.key } })
@@ -114,12 +119,17 @@
             catMap[p.categoria] = { name: p.categoria, items: [] };
             cats.push(catMap[p.categoria]);
           }
+          var local = staticItem(p.categoria, p.nombre) || {};
           catMap[p.categoria].items.push({
             name: p.nombre,
             price: p.precio,
-            desc: p.descripcion || "",
+            desc: local.package ? (local.desc || p.descripcion || "") : (p.descripcion || local.desc || ""),
             category: p.categoria,
-            id: p.id
+            id: p.id,
+            variants: local.variants,
+            package: local.package,
+            featured: local.featured,
+            emoji: local.emoji
           });
         });
         initApp(cats);
