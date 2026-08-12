@@ -35,7 +35,7 @@ REM 1. Servidor web (puerto 3001)
 netstat -ano | findstr ":3001.*LISTENING" >nul
 if errorlevel 1 (
     echo [!] Servidor web CAIDO - reiniciando...
-    start "Sakura Web" cmd /c "python -m http.server 3001"
+    start "Sakura Web" cmd /c "python web_server.py --port 3001"
 ) else (
     echo [OK] Servidor web (3001)
 )

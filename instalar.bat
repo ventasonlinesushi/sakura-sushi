@@ -60,7 +60,7 @@ echo   ==========================================
 echo.
 
 REM 6. Iniciar servidores
-start "Web Server" cmd /c "python -m http.server %PUERTO%"
+start "Web Server" cmd /c "python web_server.py --port %PUERTO%"
 start "Print Server" cmd /c "cd /d %~dp0receptor && python print_server.py"
 for /f "tokens=*" %%m in ('python -c "import json; print(json.load(open('receptor/config.json','r',encoding='utf-8')).get('marcas',{}).get(list(json.load(open('receptor/config.json','r',encoding='utf-8')).get('marcas',{}).keys()[0],{}).get('empresa',''))" 2^>nul') do set MARCA=%%m
 if exist "sakura-card.png" (start "Receiver" cmd /c "cd /d %~dp0receptor && python ordereceiver.py --marca sakura") else (start "Receiver" cmd /c "cd /d %~dp0receptor && python ordereceiver.py --marca mandala")
