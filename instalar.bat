@@ -11,29 +11,24 @@ echo.
 REM 1. Verificar Python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo   [ERROR] Python no esta instalado.
-    echo   Descargalo de https://python.org
-    echo   IMPORTANTE: marca "Add Python to PATH"
-    pause
-    exit /b
+    echo   Python no encontrado. Instalando Python oficial...
+    winget install --id Python.Python.3.13 --exact --scope user --accept-package-agreements --accept-source-agreements
+    set "PATH=%LocalAppData%\Programs\Python\Python313;%LocalAppData%\Programs\Python\Python313\Scripts;%PATH%"
+    python --version >nul 2>&1
+    if errorlevel 1 (
+        echo   [ERROR] Reinicia Windows y vuelve a ejecutar instalar.bat.
+        pause
+        exit /b
+    )
 )
 echo   [OK] Python detectado
 
 REM 2. Instalar dependencias
 echo   Instalando dependencias...
-pip install pywin32 -q 2>nul
+python -m pip install --upgrade pywin32
 echo   [OK] Dependencias listas
 
-REM 3. Configurar impresora
-echo.
-echo   Buscando impresoras...
-for /f "delims=" %%i in ('python -c "import win32print; [print(p[2]) for p in win32print.EnumPrinters(2)]" 2^>nul ^| findstr /i "POS YICHIP termica"') do set IMPRESORA=%%i
-if "%IMPRESORA%"=="" set IMPRESORA=YICHIP POS-58
-
-echo   Impresora: %IMPRESORA%
-cd receptor
-python -c "import json; f=open('config.json','r',encoding='utf-8'); c=json.load(f); f.close(); c['impresoras']={'caja':'%IMPRESORA%','cocina':'%IMPRESORA%','sushi':'%IMPRESORA%','bebidas':'%IMPRESORA%','barra':'%IMPRESORA%'}; f=open('config.json','w',encoding='utf-8'); json.dump(c,f,indent=2); f.close()"
-cd ..
+REM 3. La impresora se elige desde Admin - Configurar impresoras
 
 REM 4. Obtener IP
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4" ^| findstr "192.168 10."') do set IP=%%a
@@ -69,6 +64,9 @@ start "Web Server" cmd /c "python -m http.server %PUERTO%"
 start "Print Server" cmd /c "cd /d %~dp0receptor && python print_server.py"
 for /f "tokens=*" %%m in ('python -c "import json; print(json.load(open('receptor/config.json','r',encoding='utf-8')).get('marcas',{}).get(list(json.load(open('receptor/config.json','r',encoding='utf-8')).get('marcas',{}).keys()[0],{}).get('empresa',''))" 2^>nul') do set MARCA=%%m
 if exist "sakura-card.png" (start "Receiver" cmd /c "cd /d %~dp0receptor && python ordereceiver.py --marca sakura") else (start "Receiver" cmd /c "cd /d %~dp0receptor && python ordereceiver.py --marca mandala")
+timeout /t 3 /nobreak >nul
+start "" "http://localhost:%PUERTO%/admin/"
+echo   En el panel usa: Configurar impresoras
 echo.
 echo   Servidores activos. Presiona para detener...
 pause >nul

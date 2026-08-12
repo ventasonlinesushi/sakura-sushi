@@ -1,13 +1,16 @@
 {
-  "name": "Sakura Sushi · Panel",
+  "id": "./",
+  "name": "Sakura Sushi POS",
   "short_name": "Sakura POS",
-  "description": "Panel de administración de pedidos",
-  "start_url": "/admin/",
+  "description": "Pedidos y comandas de Sakura Sushi",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "theme_color": "#e8367c",
-  "background_color": "#1c0d14",
+  "background_color": "#10131c",
   "icons": [
-    { "src": "../logo.png", "sizes": "512x512", "type": "image/png" }
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
   ]
 }

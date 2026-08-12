@@ -341,22 +341,56 @@ def imprimir_corte(data):
         if data.get("pendientes"):
             t.linea("Pendientes: " + str(data.get("pendientes")), bold=True)
         t.guion(); t.linea("VENTAS POR METODO", "cen", bold=True)
-        for etiqueta, clave in (("Efectivo", "efectivo"), ("Tarjeta", "tarjeta"), ("Transferencia", "transferencia"), ("Apps / Otros", "apps"), ("Pagado online", "online")):
+        for etiqueta, clave in (("Efectivo", "efectivo"), ("Tarjeta", "tarjeta"), ("Transferencia", "transferencia"), ("DIDI", "didi"), ("Uber Eats", "uber"), ("Rappi", "rappi"), ("Pagado online", "online"), ("Otros", "otros")):
             valor = float(ventas.get(clave, 0) or 0)
-            if valor or clave != "online":
+            if valor or clave in ("efectivo", "tarjeta", "transferencia"):
                 importe = f"${valor:.2f}"
                 t.linea(etiqueta.ljust(t.ancho-len(importe)) + importe)
+        subtotal_apps = float(ventas.get("apps", 0) or 0)
+        if subtotal_apps:
+            importe_apps = f"${subtotal_apps:.2f}"
+            t.linea("Subtotal apps".ljust(t.ancho-len(importe_apps)) + importe_apps, bold=True)
         t.guion()
         total = float(ventas.get("total", 0) or 0)
         importe_total = f"${total:.2f}"
         t.linea("TOTAL".ljust(t.ancho-len(importe_total)) + importe_total, bold=True)
-        if tipo == "CIERRE DE TURNO":
+        auditoria = data.get("auditoria") or {}
+        gastos = auditoria.get("gastos") or {}
+        cancelaciones = auditoria.get("cancelaciones") or {}
+        descuentos = auditoria.get("descuentos") or {}
+        reabiertas = auditoria.get("reabiertas") or {}
+        propinas = auditoria.get("propinas") or {}
+        impuestos = auditoria.get("impuestos") or {}
+        t.guion(); t.linea("CONTROL DE OPERACION", "cen", bold=True)
+        t.linea(f"Gastos ({int(gastos.get('cantidad', 0) or 0)}): ${float(gastos.get('total', 0) or 0):.2f}")
+        t.linea(f"Descuentos: ${float(descuentos.get('total', 0) or 0):.2f}")
+        t.linea(f"Canceladas ({int(cancelaciones.get('cuentas', 0) or 0)}): ${float(cancelaciones.get('cuentas_total', 0) or 0):.2f}")
+        t.linea(f"Prod. cancelados ({int(cancelaciones.get('productos', 0) or 0)}): ${float(cancelaciones.get('productos_total', 0) or 0):.2f}")
+        t.linea(f"Cuentas reabiertas: {int(reabiertas.get('cantidad', 0) or 0)}")
+        t.linea(f"Propinas pagadas: ${float(propinas.get('total', 0) or 0):.2f}", bold=True)
+        if float(propinas.get("total", 0) or 0):
+            t.linea(f"  Efectivo: ${float(propinas.get('efectivo', 0) or 0):.2f}")
+            t.linea(f"  Tarjeta: ${float(propinas.get('tarjeta', 0) or 0):.2f}")
+            t.linea(f"  Transferencia: ${float(propinas.get('transferencia', 0) or 0):.2f}")
+            t.linea(f"  Otros: ${float(propinas.get('otros', 0) or 0):.2f}")
+        if impuestos:
+            t.linea(f"IVA {int(impuestos.get('tasa', 16) or 16)}% incluido: ${float(impuestos.get('incluido', 0) or 0):.2f}")
+        neto = total - float(gastos.get("total", 0) or 0)
+        t.linea(f"VENTA MENOS GASTOS: ${neto:.2f}", bold=True)
+        t.linea(f"INGRESO + PROPINAS: ${total + float(propinas.get('total', 0) or 0):.2f}", bold=True)
+        if tipo == "CIERRE DE TURNO" or data.get("contado"):
             t.guion(); t.linea("ARQUEO", "cen", bold=True)
             esperado = float(data.get("efectivo_esperado", 0) or 0)
             contado = data.get("contado") or {}
             diferencia = float(data.get("diferencia", 0) or 0)
             t.linea(f"Efectivo esperado: ${esperado:.2f}")
-            t.linea(f"Total contado: ${float(contado.get('total', 0) or 0):.2f}")
+            t.linea("DECLARADO POR CAJERO", "cen", bold=True)
+            for etiqueta, clave in (("Efectivo", "efectivo"), ("Tarjeta", "tarjeta"), ("Transferencia", "transferencia"), ("Apps / Otros", "apps")):
+                real = float(ventas.get(clave, 0) or 0)
+                declarado = float(contado.get(clave, 0) or 0)
+                t.linea(f"{etiqueta}: ${declarado:.2f}")
+                t.linea(f"  Sistema ${real:.2f} Dif ${declarado-real:.2f}")
+            t.linea(f"Total declarado: ${float(contado.get('total', 0) or 0):.2f}")
             t.linea(f"Diferencia: ${diferencia:.2f}", bold=True)
             t.linea("CAJA CUADRADA" if diferencia == 0 else ("SOBRANTE" if diferencia > 0 else "FALTANTE"), "cen", bold=True)
         movimientos = data.get("movimientos") or []
@@ -370,7 +404,9 @@ def imprimir_corte(data):
         if data.get("validado"):
             t.guion(); t.linea("DIA VALIDADO", "cen", bold=True)
             t.linea("Sin turnos ni cuentas pendientes", "cen")
-        t.guion(); t.linea("INFORMATIVO - NO ES COMPROBANTE", "cen"); t.linea("")
+        t.guion(); t.linea("IMPORTES EN PESOS MEXICANOS", "cen")
+        t.linea("IVA INCLUIDO - NO SE SUMA DE NUEVO", "cen")
+        t.linea("INFORMATIVO - NO ES COMPROBANTE FISCAL", "cen"); t.linea("")
         impresora_caja = CONFIG.get("impresoras", {}).get("caja")
         printer._enviar(impresora_caja, t.compilar())
         return True, tipo + " impreso"
@@ -385,15 +421,58 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 class PrintHandler(BaseHTTPRequestHandler):
+    def _es_local(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/ping":
             self._resp(200, {"ok": True, "msg": "print_server running"})
+        elif path == "/printers":
+            if not self._es_local():
+                self._resp(403, {"error": "La configuracion solo se permite desde la computadora del POS"})
+                return
+            self._resp(200, {"ok": True, "printers": printer.impresoras(), "configured": CONFIG.get("impresoras", {}), "paper": CONFIG.get("ancho_papel", "58")})
         else:
             self._resp(404, {"error": "not found"})
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path in ("/printer-config", "/printer-test"):
+            if not self._es_local():
+                self._resp(403, {"error": "La configuracion solo se permite desde la computadora del POS"})
+                return
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                data = json.loads(self.rfile.read(length).decode("utf-8"))
+                if path == "/printer-test":
+                    nombre = str(data.get("printer", "")).strip()
+                    if nombre not in printer.impresoras():
+                        raise ValueError("La impresora seleccionada no esta instalada")
+                    printer.imprimir_prueba(nombre, str(data.get("paper", CONFIG.get("ancho_papel", "58"))))
+                    self._resp(200, {"ok": True, "msg": "Ticket de prueba enviado"})
+                    return
+                estaciones = ("caja", "cocina", "sushi", "bebidas", "barra")
+                disponibles = set(printer.impresoras())
+                nuevas = {}
+                for estacion in estaciones:
+                    nombre = str((data.get("printers") or {}).get(estacion, "")).strip()
+                    if nombre and nombre not in disponibles:
+                        raise ValueError(f"Impresora no instalada: {nombre}")
+                    nuevas[estacion] = nombre
+                papel = str(data.get("paper", "58"))
+                if papel not in ("58", "80"):
+                    raise ValueError("Ancho de papel invalido")
+                CONFIG["impresoras"] = nuevas
+                CONFIG["ancho_papel"] = papel
+                temporal = CONFIG_PATH + ".tmp"
+                with open(temporal, "w", encoding="utf-8") as f:
+                    json.dump(CONFIG, f, ensure_ascii=False, indent=2)
+                os.replace(temporal, CONFIG_PATH)
+                self._resp(200, {"ok": True, "msg": "Configuracion guardada"})
+            except Exception as e:
+                self._resp(400, {"error": str(e)})
+            return
         if path == "/corte":
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -451,13 +530,18 @@ class PrintHandler(BaseHTTPRequestHandler):
 
 def main():
     p = PORT
+    host = "0.0.0.0"
     if "--port" in sys.argv:
         idx = sys.argv.index("--port") + 1
         if idx < len(sys.argv):
             p = int(sys.argv[idx])
+    if "--host" in sys.argv:
+        idx = sys.argv.index("--host") + 1
+        if idx < len(sys.argv):
+            host = sys.argv[idx]
 
-    server = ThreadingHTTPServer(("0.0.0.0", p), PrintHandler)
-    print(f"print_server escuchando en http://localhost:{p}")
+    server = ThreadingHTTPServer((host, p), PrintHandler)
+    print(f"print_server escuchando en http://{host}:{p}")
     print(f"Impresoras: caja={CONFIG.get('impresoras',{}).get('caja','?')} | cocina={CONFIG.get('impresoras',{}).get('cocina','?')} | sushi={CONFIG.get('impresoras',{}).get('sushi','?')} | bebidas={CONFIG.get('impresoras',{}).get('bebidas','?')}")
     try:
         server.serve_forever()

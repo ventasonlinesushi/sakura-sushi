@@ -3,8 +3,8 @@ var SUPABASE_URL = "https://edquyomwiiaawqslsisd.supabase.co";
 var SUPABASE_KEY = "sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf";
 var API = SUPABASE_URL + "/rest/v1/orders";
 var HDR = { "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY };
-var SESSION = "sakuraAdmin";
 var BRAND = (window.PosApp&&window.PosApp.brandConfig)||{business:"Sakura Sushi Paseos Mid",marca:"sakura"};
+var SESSION = BRAND.sessionKey || ((BRAND.marca||"sakura")+"Admin");
 var $ = function(id){return document.getElementById(id);};
 var money = function(n){return "$"+Number(n||0).toLocaleString("es-MX");};
 var esc = function(s){return String(s||"").replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});};
@@ -19,10 +19,10 @@ var MENU = (window.PosApp&&window.PosApp.menuData)||[];
 
 /* Roles y permisos */
 var PERMISOS = {
-  admin:   { todo:1, descuentos:1, cancelar:1, turno:1, reportes:1, usuarios:1, productos:1, cobrar:1, imprimir:1, nuevoPedido:1, reabrir:1, archivar:1, cambiarEstado:1, gastos:1 },
-  cajero:  { todo:1, descuentos:1, cancelar:1, turno:1, reportes:1, usuarios:1, productos:1, cobrar:1, imprimir:1, nuevoPedido:1, reabrir:1, archivar:1, cambiarEstado:1, gastos:1 },
-  cocina:  { todo:1, descuentos:1, cancelar:1, turno:1, reportes:1, usuarios:1, productos:1, cobrar:1, imprimir:1, nuevoPedido:1, reabrir:1, archivar:1, cambiarEstado:1, gastos:1, verKDS:1 },
-  mesero:  { todo:1, descuentos:1, cancelar:1, turno:1, reportes:1, usuarios:1, productos:1, cobrar:1, imprimir:1, nuevoPedido:1, reabrir:1, archivar:1, cambiarEstado:1, gastos:1 }
+  admin:   {todo:1,descuentos:1,cancelar:1,turno:1,reportes:1,usuarios:1,productos:1,cobrar:1,imprimir:1,nuevoPedido:1,reabrir:1,archivar:1,cambiarEstado:1,gastos:1,dividir:1,editar:1,comandar:1,configImpresoras:1},
+  cajero:  {descuentos:1,cancelar:1,turno:1,reportes:1,cobrar:1,imprimir:1,nuevoPedido:1,reabrir:1,archivar:1,cambiarEstado:1,gastos:1,dividir:1,editar:1,comandar:1},
+  cocina:  {cambiarEstado:1,verKDS:1,comandar:1},
+  mesero:  {nuevoPedido:1,cambiarEstado:1,dividir:1,editar:1,comandar:1}
 };
 var currentUser = null;
 var ROLES = ["admin","cajero","cocina","mesero"];
@@ -212,9 +212,9 @@ function renderSidePanel(){
     acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">Reimprimir</button>';
   } else {
     if(canDo("cobrar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosCobrar(\''+id+'\')">Cobrar</button>';
-    acc += '<button class="sp-btn" onclick="PosDividir(\''+id+'\')">✂️ Dividir</button>';
-    acc += '<button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Editar</button>';
-    acc += '<button class="sp-btn" onclick="PosComandar(\''+id+'\')">🖨 Comandar</button>';
+    if(canDo("dividir")) acc += '<button class="sp-btn" onclick="PosDividir(\''+id+'\')">✂️ Dividir</button>';
+    if(canDo("editar")) acc += '<button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Editar</button>';
+    if(canDo("comandar")) acc += '<button class="sp-btn" onclick="PosComandar(\''+id+'\')">🖨 Comandar</button>';
     if(canDo("imprimir")) acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">Imprimir</button>';
     if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOff(\''+id+'\')">Salir cancelar</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
     if(canDo("cambiarEstado")) acc += flows;
@@ -284,7 +284,10 @@ function confirmarCobro(){
   else{var ref=(document.getElementById("cobroRef")||{}).value||"";det=(ref?"Ref:"+ref+" | ":"")+(prop?"Propina:"+prop:"");}
   if(m==="online"){ det="Pago recibido por Internet"; }
   var nota=(o.notes||"");if(nota)nota+=" | ";nota+="PAGO:"+ml+" | "+det+" | PAGO_EN:"+new Date().toISOString();
-  patchOrder(o.id,{payment:ml,notes:nota,total:total,status:"cobrado"}).then(function(){$("cobroModal").classList.add("hidden");toast("Cuenta #"+o.folio+" cobrada");state.activeTab="cobradas";refresh()});
+  patchOrder(o.id,{payment:ml,notes:nota,total:total,status:"cobrado"}).then(function(){
+    $("cobroModal").classList.add("hidden");state.selectedOrderId=null;$("sidePanel").classList.add("hidden");
+    toast("Cuenta #"+o.folio+" cobrada correctamente");refresh();
+  }).catch(function(err){toast("No se pudo registrar el cobro: "+err.message)});
 }
 
 /* Impresion */
@@ -338,7 +341,7 @@ function saveNewOrder(){
   var t=newOrder.type,mesa=parseInt($("noMesa").value||"1",10),name=($("noName").value||"").trim(),addr="";
   if(t==="restaurante"){addr="Mesa "+(mesa||1);if(!name)name=addr}else if(t==="domicilio"){addr=($("noAddr").value||"").trim()}
   var phone=t==="restaurante"?"":($("noPhone").value||"").trim();
-  var rec={folio:nextFolio(),name:name||"Cliente",phone:phone,order_type:t,address:addr,payment:$("noPay").value,notes:($("noNotes").value||"").trim(),salsas:"",palitos:"No",marca:BRAND.marca||"",items:newOrder.cart.map(function(c){return{key:c.key,name:c.name,qty:c.qty,price:c.cortesia?0:c.price,desc:c.desc,comment:c.comment||"",cortesia:c.cortesia||false}}),total:newOrder.cart.reduce(function(a,c){return c.cortesia?a:a+c.price*c.qty},0)};
+  var rec={folio:nextFolio(),name:name||"Cliente",phone:phone,order_type:t,address:addr,payment:$("noPay").value,notes:($("noNotes").value||"").trim(),salsas:"",palitos:"No",marca:BRAND.marca||"",status:"nuevo",items:newOrder.cart.map(function(c){return{key:c.key,name:c.name,qty:c.qty,price:c.cortesia?0:c.price,desc:c.desc,comment:c.comment||"",cortesia:c.cortesia||false}}),total:newOrder.cart.reduce(function(a,c){return c.cortesia?a:a+c.price*c.qty},0)};
   saveApi(rec).then(function(){$("newOrderModal").classList.add("hidden");toast("Pedido #"+rec.folio+" enviado");printTicket(rec);refresh()
     // Decrementar inventario
     newOrder.cart.forEach(function(c){
@@ -459,7 +462,7 @@ function PosCancelModeOff(id){cancelMode[id]=false;render();}
 function PosChangeStatus(id,st){var o=state.orders.find(function(x){return x.id===id}),final=st==="entregado"&&o&&o.payment==="Pagado Online"?"cobrado":st;patchOrder(id,{status:final}).then(function(){if(final==="cobrado")toast("Pedido entregado y pago online conciliado");refresh()}).catch(function(e){toast("No se pudo cambiar el estado: "+e.message)});}
 function PosEditName(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Nombre:",o.name||"");if(v!==null){patchOrder(id,{name:v}).then(refresh);}}
 function PosEditNotes(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Observaciones:",o.notes||"");if(v!==null){patchOrder(id,{notes:v}).then(refresh);}}
-function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id});if(!o||!o.items||ix>=o.items.length)return;var rm=o.items[ix];o.items=o.items.filter(function(_,i){return i!==ix});patchOrder(id,{items:o.items}).then(function(){printCancelTicket(o,rm);toast("X "+esc(rm.name)+" cancelado");refresh()});}
+function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id});if(!o||!o.items||ix>=o.items.length)return;var rm=o.items[ix],log=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"CancelLog")||"[]"),raw=localStorage.getItem(SESSION),user=raw?JSON.parse(raw):{};log.push({orderId:id,folio:o.folio,producto:rm.name,cantidad:rm.qty||1,monto:(rm.price||0)*(rm.qty||1),usuario:user.nombre||user.username||"Usuario",fecha:new Date().toISOString()});if(log.length>500)log=log.slice(-500);localStorage.setItem((BRAND.marca||"store")+"CancelLog",JSON.stringify(log));o.items=o.items.filter(function(_,i){return i!==ix});patchOrder(id,{items:o.items}).then(function(){printCancelTicket(o,rm);toast("X "+esc(rm.name)+" cancelado");refresh()});}
 function PosUpdateDisc(id,inp,isDisc){
   var val=isDisc?Math.min(100,Math.max(0,parseInt(inp.value,10)||0)):Math.max(0,parseInt(inp.value,10)||0);
   var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");if(isDisc)de.d=val;else de.e=val;
@@ -514,6 +517,8 @@ function initApp(){
   var raw=localStorage.getItem(SESSION);if(!raw)return;
   try{var user=JSON.parse(raw);if(!user||!user.username)return}catch(e){return}
   currentUser = user;
+  document.body.classList.toggle("role-mesero",user.rol==="mesero");
+  document.body.classList.toggle("role-cocina",user.rol==="cocina");
   document.title = user.nombre + " - " + BRAND.business;
   $("pinScreen").classList.add("hidden");$("app").classList.remove("hidden");
   $("hdTitle").textContent=BRAND.business;
@@ -529,8 +534,11 @@ function initApp(){
   if(!canDo("gastos")){$("gastosBtn").style.display="none"}
   if(!canDo("nuevoPedido")){$("newOrderBtn").style.display="none"}
   if(!canDo("turno")){$("turnoBadge").style.display="none"}
+  if(!canDo("configImpresoras")){$("printerConfigBtn").style.display="none";$('printStatus').style.display="none"}
+  if(user.rol==="mesero"){["reportesBtn","gastosBtn","crmBtn","cocinaBtn"].forEach(function(id){if($(id))$(id).style.display="none"});var cob=document.querySelector('[data-tab="cobradas"]');if(cob)cob.style.display="none"}
   // PWA service worker
   if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
+  configurarInstalacionMovil();
   // Cerrar dropdown al hacer clic fuera
   document.addEventListener("click",function(e){if(!e.target.closest(".user-menu")){var um=document.getElementById("userMenu");if(um)um.classList.remove("open")}})
   // Wire UI
@@ -871,6 +879,19 @@ function fechaCobro(o){
   if(m&&m.length){var v=m[m.length-1].replace(/^.*PAGO_EN:/,"").trim();var d=new Date(v);if(!isNaN(d.getTime()))return d;}
   return new Date(o.created_at);
 }
+var installPromptEvent=null;
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();installPromptEvent=e;var b=$("installAppBtn");if(b)b.style.display=""});
+function configurarInstalacionMovil(){var b=$("installAppBtn");if(!b)return;var ios=/iPhone|iPad|iPod/i.test(navigator.userAgent),standalone=window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches;if(standalone){b.style.display="none";return}if(ios)b.style.display="";b.onclick=function(){if(installPromptEvent){installPromptEvent.prompt();installPromptEvent.userChoice.then(function(){installPromptEvent=null;b.style.display="none"});return}if(ios){alert("Para instalar:\n1. Abre el menú Compartir de Safari.\n2. Toca Agregar a pantalla de inicio.\n3. Confirma Agregar.")}else{alert("Abre el menú del navegador y elige Instalar aplicación o Agregar a pantalla principal. Para instalación completa se requiere una conexión HTTPS.")}}}
+
+function abrirConfigImpresoras(){
+  var modal=$("printerConfigModal"),body=$("printerConfigBody");modal.classList.remove("hidden");body.innerHTML='<div class="empty">Buscando impresoras instaladas...</div>';
+  var xhr=new XMLHttpRequest();xhr.open("GET","http://"+PRINT_HOST+":5100/printers",true);xhr.timeout=5000;
+  xhr.onload=function(){if(xhr.status!==200){body.innerHTML='<div class="empty">Abre esta pantalla en la computadora principal del POS.</div>';return}var d=JSON.parse(xhr.responseText),stations=[['caja','Caja / tickets'],['cocina','Cocina'],['sushi','Sushi'],['bebidas','Bebidas'],['barra','Barra']],opts=['<option value="">Sin impresora</option>'].concat((d.printers||[]).map(function(p){return'<option value="'+esc(p)+'">'+esc(p)+'</option>'})).join('');body.innerHTML=stations.map(function(s){return'<div class="frow"><label>'+s[1]+'</label><select id="pc_'+s[0]+'">'+opts+'</select></div>'}).join('')+'<div class="frow"><label>Ancho del papel</label><select id="pc_paper"><option value="58">58 mm</option><option value="80">80 mm</option></select></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><button class="btn ghost" onclick="probarImpresoraConfigurada()">🧾 Imprimir prueba</button><button class="btn btn-primary" onclick="guardarConfigImpresoras()">💾 Guardar configuración</button></div>';stations.forEach(function(s){var el=$("pc_"+s[0]);if(el)el.value=(d.configured||{})[s[0]]||""});$("pc_paper").value=d.paper||"58"};
+  xhr.onerror=xhr.ontimeout=function(){body.innerHTML='<div class="empty">Receptor de impresión apagado. Inicia el sistema y vuelve a intentar.</div>'};xhr.send();
+}
+function enviarConfigImpresora(path,data,ok){var xhr=new XMLHttpRequest();xhr.open("POST","http://"+PRINT_HOST+":5100/"+path,true);xhr.setRequestHeader("Content-Type","application/json");xhr.timeout=8000;xhr.onload=function(){var d={};try{d=JSON.parse(xhr.responseText||"{}")}catch(e){}if(xhr.status>=200&&xhr.status<300){toast(d.msg||"Configuración guardada");if(ok)ok()}else toast(d.error||"No se pudo configurar")};xhr.onerror=xhr.ontimeout=function(){toast("Receptor de impresión no disponible")};xhr.send(JSON.stringify(data))}
+function probarImpresoraConfigurada(){var nombre=($("pc_caja")||{}).value;if(!nombre){toast("Selecciona la impresora de caja");return}enviarConfigImpresora("printer-test",{printer:nombre,paper:($("pc_paper")||{}).value||"58"})}
+function guardarConfigImpresoras(){var p={};['caja','cocina','sushi','bebidas','barra'].forEach(function(s){p[s]=($("pc_"+s)||{}).value||""});if(!p.caja){toast("Selecciona al menos la impresora de caja");return}enviarConfigImpresora("printer-config",{printers:p,paper:($("pc_paper")||{}).value||"58"},function(){$("printerConfigModal").classList.add("hidden");verificarPrintServer()})}
 function filtrarCobradasDelTurno(orders, desde){
   var inicio=new Date(desde).getTime();
   return orders.filter(function(o){var d=fechaCobro(o);return !isNaN(d.getTime())&&d.getTime()>=inicio;});
@@ -889,7 +910,7 @@ function calcularVentas(done){
   xhr.onload=function(){
     if(xhr.status!==200){if(done)done();return;}
     var orders = filtrarCobradasDelTurno(JSON.parse(xhr.responseText), desde);
-    var v = {efectivo:0,tarjeta:0,transferencia:0,apps:0,online:0,total:0};
+    var v = {efectivo:0,tarjeta:0,transferencia:0,apps:0,didi:0,uber:0,rappi:0,otros:0,online:0,total:0};
     orders.forEach(function(o){
       var p = (o.payment||"").toLowerCase();
       v.total += (o.total||0);
@@ -897,7 +918,10 @@ function calcularVentas(done){
       else if(p.includes("efect")){ v.efectivo += (o.total||0); }
       else if(p.includes("tarj")||p.includes("tdc")){ v.tarjeta += (o.total||0); }
       else if(p.includes("transf")){ v.transferencia += (o.total||0); }
-      else { v.apps += (o.total||0); }
+      else if(p.includes("didi")){v.didi+=(o.total||0);v.apps+=(o.total||0);}
+      else if(p.includes("uber")){v.uber+=(o.total||0);v.apps+=(o.total||0);}
+      else if(p.includes("rappi")){v.rappi+=(o.total||0);v.apps+=(o.total||0);}
+      else {v.otros+=(o.total||0);v.apps+=(o.total||0);}
     });
     var de = JSON.parse(localStorage.getItem("turnoData_"+state.turno.abierto_en)||"{}");
     de.ventas = v; de.pedidosCount = orders.length;
@@ -1259,10 +1283,11 @@ function sumarCorteCiego(){
   var diff=tot-v.total,r=$("arqueoResult");if(r){r.className='arqueo-result '+(diff===0?'ok':diff>0?'plus':'minus');var s=r.querySelector('small');if(s)s.textContent=diff===0?'✓ Todo coincide. Ya puedes cerrar.':diff>0?'Hay un sobrante de '+money(diff):'Hay un faltante de '+money(-diff)}
 }
 
-function datosCorte(tipo,v,extra){var t=state.turno||{},de=t.abierto_en?JSON.parse(localStorage.getItem("turnoData_"+t.abierto_en)||"{}"):{};return Object.assign({tipo:tipo,marca:BRAND.marca||"sakura",negocio:BRAND.business||"Sakura Sushi",fecha:new Date().toISOString(),usuario:t.usuario_nombre||"Administrador",abierto_en:t.abierto_en||"",pedidos:de.pedidosCount||0,ventas:v||de.ventas||{efectivo:0,tarjeta:0,transferencia:0,apps:0,total:0},movimientos:de.movs||[],efectivo_inicial:t.efectivo_inicial||0},extra||{})}
+function auditoriaCorte(desde,ventas){var inicio=desde?new Date(desde):new Date(0),rows=state.orders.filter(function(o){return o.created_at&&new Date(o.created_at)>=inicio}),canceladas=rows.filter(function(o){return o.status==="cancelado"}),cancelLog=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"CancelLog")||"[]").filter(function(x){return x.fecha&&new Date(x.fecha)>=inicio}),reabiertas=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"ReabrirLog")||"[]").filter(function(x){return x.fecha&&new Date(x.fecha)>=inicio}),gastos=fetchGastos().filter(function(x){return x.creado_en&&new Date(x.creado_en)>=inicio}),desc=0,prop={efectivo:0,tarjeta:0,transferencia:0,otros:0,total:0};rows.forEach(function(o){var ex=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}"),bruto=(o.items||[]).reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0),cargo=ex.e||0;if(o.status==="cobrado"&&bruto+cargo>(o.total||0))desc+=bruto+cargo-(o.total||0);if(o.status==="cobrado"){var m=String(o.notes||"").match(/Propina:\s*([0-9]+(?:\.[0-9]+)?)/i),n=m?Number(m[1]):0,p=String(o.payment||"").toLowerCase();if(n>0){prop.total+=n;if(p.includes("efect"))prop.efectivo+=n;else if(p.includes("tarj"))prop.tarjeta+=n;else if(p.includes("transf"))prop.transferencia+=n;else prop.otros+=n}}});var total=(ventas&&ventas.total)||0;return{gastos:{cantidad:gastos.length,total:gastos.reduce(function(a,g){return a+(g.monto||0)},0),detalle:gastos.slice(-10)},cancelaciones:{cuentas:canceladas.length,cuentas_total:canceladas.reduce(function(a,o){return a+(o.total||0)},0),productos:cancelLog.length,productos_total:cancelLog.reduce(function(a,x){return a+(x.monto||0)},0)},descuentos:{total:desc},reabiertas:{cantidad:reabiertas.length,detalle:reabiertas.slice(-10)},propinas:prop,impuestos:{tasa:16,incluido:Math.round((total*16/116)*100)/100,leyenda:"IVA 16% incluido en los precios"}}}
+function datosCorte(tipo,v,extra){var t=state.turno||{},de=t.abierto_en?JSON.parse(localStorage.getItem("turnoData_"+t.abierto_en)||"{}"):{};extra=extra||{};var ventas=v||de.ventas||{efectivo:0,tarjeta:0,transferencia:0,apps:0,total:0},desde=extra.desde||t.abierto_en||new Date().setHours(0,0,0,0);return Object.assign({tipo:tipo,marca:BRAND.marca||"sakura",negocio:BRAND.business||"Sakura Sushi",fecha:new Date().toISOString(),usuario:t.usuario_nombre||"Administrador",abierto_en:t.abierto_en||"",pedidos:de.pedidosCount||0,ventas:ventas,movimientos:de.movs||[],efectivo_inicial:t.efectivo_inicial||0,auditoria:auditoriaCorte(desde,ventas)},extra)}
 function imprimirCorte(data,done){var xhr=new XMLHttpRequest();xhr.open("POST","http://"+PRINT_HOST+":5100/corte",true);xhr.setRequestHeader("Content-Type","application/json");xhr.timeout=6000;xhr.onload=function(){if(xhr.status===200){toast(data.tipo+" impreso");if(done)done(true)}else{toast("No se pudo imprimir "+data.tipo);if(done)done(false)}};xhr.onerror=function(){toast("Impresora no disponible. Abre el receptor de impresión");if(done)done(false)};xhr.ontimeout=function(){toast("La impresora tardó demasiado");if(done)done(false)};xhr.send(JSON.stringify(data))}
 function hacerCorteX(){if(!state.turno){toast("Primero abre una caja");return}calcularVentas(function(){var de=JSON.parse(localStorage.getItem("turnoData_"+state.turno.abierto_en)||"{}");imprimirCorte(datosCorte("CORTE X",de.ventas))})}
-function resumenDia(done){var ini=new Date();ini.setHours(0,0,0,0);apiGet("orders?select=payment,total,created_at,notes,status&marca=eq."+encodeURIComponent(BRAND.marca||"")+"&status=eq.cobrado&order=created_at.desc&limit=1000").then(function(rows){rows=rows.filter(function(o){return fechaCobro(o)>=ini});var v={efectivo:0,tarjeta:0,transferencia:0,apps:0,online:0,total:0};rows.forEach(function(o){var p=(o.payment||"").toLowerCase(),n=o.total||0;v.total+=n;if(p.includes("online")){v.online+=n}else if(p.includes("efect")){v.efectivo+=n}else if(p.includes("tarj")){v.tarjeta+=n}else if(p.includes("transf")){v.transferencia+=n}else{v.apps+=n}});done(v,rows,ini)}).catch(function(){toast("No se pudo calcular el día")})}
+function resumenDia(done){var ini=new Date();ini.setHours(0,0,0,0);apiGet("orders?select=payment,total,created_at,notes,status&marca=eq."+encodeURIComponent(BRAND.marca||"")+"&status=eq.cobrado&order=created_at.desc&limit=1000").then(function(rows){rows=rows.filter(function(o){return fechaCobro(o)>=ini});var v={efectivo:0,tarjeta:0,transferencia:0,apps:0,didi:0,uber:0,rappi:0,otros:0,online:0,total:0};rows.forEach(function(o){var p=(o.payment||"").toLowerCase(),n=o.total||0;v.total+=n;if(p.includes("online")){v.online+=n}else if(p.includes("efect")){v.efectivo+=n}else if(p.includes("tarj")){v.tarjeta+=n}else if(p.includes("transf")){v.transferencia+=n}else if(p.includes("didi")){v.didi+=n;v.apps+=n}else if(p.includes("uber")){v.uber+=n;v.apps+=n}else if(p.includes("rappi")){v.rappi+=n;v.apps+=n}else{v.otros+=n;v.apps+=n}});done(v,rows,ini)}).catch(function(){toast("No se pudo calcular el día")})}
 function hacerCorteZ(){resumenDia(function(v,rows,ini){imprimirCorte(datosCorte("CORTE Z",v,{pedidos:rows.length,desde:ini.toISOString()}))})}
 function hacerCierreDiario(){var pendientes=state.orders.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;if(state.turno){toast("Primero cierra el turno abierto");return}if(pendientes){toast("Faltan "+pendientes+" cuentas por cobrar o cancelar");return}resumenDia(function(v,rows,ini){imprimirCorte(datosCorte("CIERRE DIARIO",v,{pedidos:rows.length,desde:ini.toISOString(),validado:true}))})}
 

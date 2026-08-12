@@ -63,6 +63,8 @@
     </div>
     <div class="hd-actions">
       <span id="printStatus" style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;font-weight:600">🖨️</span>
+      <button class="btn ghost" id="printerConfigBtn" title="Configurar impresoras" onclick="abrirConfigImpresoras()">⚙ Impresoras</button>
+      <button class="btn ghost" id="installAppBtn" style="display:none" title="Instalar aplicación">📲 Instalar</button>
       <button class="turno-badge" id="turnoBadge" onclick="if(window.PosTurno)PosTurno()">🔴 Abrir turno</button>
       <button class="btn ghost" id="cocinaBtn" title="Pantalla de cocina" onclick="window.open('cocina.html','_blank')">🍳 Cocina</button>
       <button class="btn ghost" id="reportesBtn" title="Reportes" onclick="document.getElementById('reportesModal').classList.remove('hidden');cargarReportes('hoy')">📊</button>
@@ -85,8 +87,8 @@
         <span class="user-arrow">▾</span>
         <div class="user-dropdown">
           <div class="user-dropdown-div"></div>
-          <div class="user-dropdown-item drop-action" onclick="event.stopPropagation();localStorage.removeItem('sakuraAdmin');location.reload()">🔄 Cambiar de usuario</div>
-          <div class="user-dropdown-item drop-action" onclick="event.stopPropagation();localStorage.removeItem('sakuraAdmin');location.reload()">🚪 Cerrar sesión</div>
+          <div class="user-dropdown-item drop-action" onclick="event.stopPropagation();cerrarSesionPos()">🔄 Cambiar de usuario</div>
+          <div class="user-dropdown-item drop-action" onclick="event.stopPropagation();cerrarSesionPos()">🚪 Cerrar sesión</div>
         </div>
       </div>
     </div>
@@ -356,6 +358,13 @@
   </div>
 </div>
 
+<div class="modal hidden" id="printerConfigModal">
+  <div class="modal-card" style="max-width:560px">
+    <div class="modal-head"><h2>🖨 Configurar impresoras</h2><button class="btn ghost" onclick="document.getElementById('printerConfigModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body"><p style="font-size:12px;color:var(--muted);margin-top:0">Selecciona una impresora instalada para cada área. Esta configuración pertenece únicamente a esta computadora.</p><div id="printerConfigBody"><div class="empty">Buscando impresoras...</div></div></div>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 <div class="print-area" id="printArea"></div>
 
@@ -405,7 +414,9 @@
 // ===== LOGIN =====
 var LOGIN_API = "https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders";
 var LOGIN_HDR = {"apikey":"sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf","Authorization":"Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf"};
-var LOGIN_SESSION = "sakuraAdmin";
+var LOGIN_BRAND = (window.PosApp&&window.PosApp.brandConfig)||{marca:"sakura"};
+var LOGIN_SESSION = LOGIN_BRAND.sessionKey || ((LOGIN_BRAND.marca||"sakura")+"Admin");
+function cerrarSesionPos(){localStorage.removeItem(LOGIN_SESSION);location.reload()}
 
 function _loginHash(text){
   var enc = new TextEncoder();
