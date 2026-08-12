@@ -10,6 +10,8 @@ import time
 
 import win32print
 
+from package_expander import expandir_items
+
 ANCHOS = {"58": 32, "80": 42, "56": 32}
 
 # Comandos ESC/POS
@@ -207,6 +209,11 @@ def imprimir_cuenta(cfg, pedido):
     subtotal = 0.0
     for ln in pedido["items"]:
         t.item(ln["cantidad"], ln["nombre"], ln["total_linea"])
+        detalles = expandir_items([ln], cfg.get("marca") or "sakura")
+        if len(detalles) != 1 or detalles[0].get("nombre") != ln["nombre"]:
+            t.linea("  INCLUYE:", bold=True)
+            for detalle in detalles:
+                t.texto(f"   {detalle.get('cantidad', 1)}x {detalle.get('nombre', '')}")
         subtotal += ln["total_linea"]
 
     t.guion()

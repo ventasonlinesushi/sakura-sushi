@@ -289,6 +289,12 @@ def imprimir_pedido_admin(data):
             linea = f"{qty}x {name}"
             linea = linea[:ancho - len(importe_str) - 1]
             t.linea(linea.ljust(ancho - len(importe_str)) + importe_str)
+            detalles = expandir_items([item], marca_key)
+            nombre_original = item.get("name", item.get("nombre", "?"))
+            if len(detalles) != 1 or detalles[0].get("nombre") != nombre_original:
+                t.linea("  INCLUYE:", bold=True)
+                for detalle in detalles:
+                    t.texto(f"   {detalle.get('cantidad', 1)}x {detalle.get('nombre', '')}")
 
         t.guion()
         t.linea(f"SUBTOTAL".ljust(ancho - 8) + f"${subtotal:.2f}".rjust(8))
