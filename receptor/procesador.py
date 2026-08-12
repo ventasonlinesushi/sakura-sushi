@@ -21,7 +21,7 @@ def _agrupar(pedido, buscador, mapa_categorias, mapa_nombres=None):
     grupos = {e: [] for e in ESTACIONES}
     for ln in pedido.get("items_produccion") or pedido["items"]:
         nombre_lower = (ln["nombre"] or "").strip().lower()
-        est = None
+        est = ln.get("estacion")
         if mapa_nombres:
             est = mapa_nombres.get(nombre_lower)
         if not est:

@@ -150,7 +150,7 @@ def imprimir_pedido_admin(data):
     for item in items_produccion:
         nombre = item.get("name", item.get("nombre", ""))
         nombre_lower = nombre.strip().lower() if nombre else ""
-        estacion = None
+        estacion = item.get("station") or item.get("estacion")
 
         # 1. Mapa explícito de nombres
         if mapa_nombres:

@@ -2,8 +2,11 @@
 """Desglosa paquetes en productos de producción sin modificar la cuenta."""
 
 
-def _linea(nombre, cantidad=1):
-    return {"cantidad": int(cantidad), "nombre": nombre, "total_linea": 0.0}
+def _linea(nombre, cantidad=1, estacion=None):
+    linea = {"cantidad": int(cantidad), "nombre": nombre, "total_linea": 0.0}
+    if estacion:
+        linea["estacion"] = estacion
+    return linea
 
 
 def _selecciones(nombre):
@@ -14,9 +17,9 @@ def _selecciones(nombre):
 
 def _rollos(nombre, esperados, cantidad_paquete):
     elegidos = _selecciones(nombre)
-    lineas = [_linea(rollo, cantidad_paquete) for rollo in elegidos]
+    lineas = [_linea(rollo, cantidad_paquete, "sushi") for rollo in elegidos]
     if len(elegidos) != esperados:
-        lineas.append(_linea("ATENCION: ROLLOS DEL PAQUETE NO ESPECIFICADOS", cantidad_paquete))
+        lineas.append(_linea("ATENCION: ROLLOS DEL PAQUETE NO ESPECIFICADOS", cantidad_paquete, "sushi"))
     return lineas
 
 
@@ -32,16 +35,16 @@ def expandir_items(items, marca="sakura"):
             salida.extend(_rollos(nombre, 2, cantidad))
         elif bajo.startswith("super paquete 4 rollos x $379"):
             salida.extend(_rollos(nombre, 4, cantidad))
-            salida.extend((_linea("Oniguri de Philadelphia Empanizado", 3 * cantidad),
-                           _linea("Papas a la Francesa", cantidad),
-                           _linea("Nestea", 2 * cantidad)))
+            salida.extend((_linea("Oniguri de Philadelphia Empanizado", 3 * cantidad, "cocina"),
+                           _linea("Papas a la Francesa", cantidad, "cocina"),
+                           _linea("Nestea", 2 * cantidad, "bebidas")))
         elif bajo.startswith("sakura lunch"):
             salida.extend(_rollos(nombre, 1, cantidad))
-            salida.extend((_linea("Medio Yakimeshi de Pollo", cantidad),
-                           _linea("Dedo de Queso Gouda", cantidad),
-                           _linea("Nestea", cantidad)))
+            salida.extend((_linea("Medio Yakimeshi de Pollo", cantidad, "cocina"),
+                           _linea("Dedo de Queso Gouda", cantidad, "cocina"),
+                           _linea("Nestea", cantidad, "bebidas")))
         elif bajo.startswith("2 yakimeshi de pollo"):
-            salida.append(_linea("Yakimeshi de Pollo", 2 * cantidad))
+            salida.append(_linea("Yakimeshi de Pollo", 2 * cantidad, "cocina"))
         elif marca == "mandala" and bajo.startswith("2 rollos x $169"):
             salida.extend(_rollos(nombre, 2, cantidad))
         elif marca == "mandala" and bajo.startswith("paquete pareja"):
