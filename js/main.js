@@ -103,12 +103,13 @@
   const ST = PosApp.menuData;
 
   if (sb && sb.url && sb.key) {
-    const url = sb.url.replace(/\/$/, "") + "/rest/v1/menu_items?marca=eq." + encodeURIComponent(brand.marca || "") + "&disponible=eq.true&order=categoria,orden";
+    const url = sb.url.replace(/\/$/, "") + "/rest/v1/menu_items?marca=eq." + encodeURIComponent(brand.marca || "") + "&order=categoria,orden";
     fetch(url, { headers: { "apikey": sb.key, "Authorization": "Bearer " + sb.key } })
       .then(function (r) { return r.json(); })
       .then(function (rows) {
         var cats = [], catMap = {};
-        rows.forEach(function (p) {
+        PosApp.menuConfig = rows.filter(function(p){ return p.categoria === "__POS_CONFIG__"; }).map(function(p){ try { return JSON.parse(p.descripcion || "{}"); } catch(e) { return null; } }).filter(function(x){ return x && x.active !== false; });
+        rows.filter(function(p){ return p.categoria !== "__POS_CONFIG__" && p.disponible === true; }).forEach(function (p) {
           if (!catMap[p.categoria]) {
             catMap[p.categoria] = { name: p.categoria, items: [] };
             cats.push(catMap[p.categoria]);
@@ -116,7 +117,9 @@
           catMap[p.categoria].items.push({
             name: p.nombre,
             price: p.precio,
-            desc: p.descripcion || ""
+            desc: p.descripcion || "",
+            category: p.categoria,
+            id: p.id
           });
         });
         initApp(cats);

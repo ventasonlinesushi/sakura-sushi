@@ -32,10 +32,14 @@
       const entry = result.find(c => c.key === key);
 
       if (!entry) {
+        const baseName = this._catalog.cartItemName(item, info.variant);
+        const basePrice = this._catalog.getPrice(item, info.variant);
+        const chosen = global.PosApp.MenuOptions ? global.PosApp.MenuOptions.choose(item, baseName, basePrice) : { name: baseName, price: basePrice };
+        if (!chosen) return result;
         result.push(global.PosApp.CartItem.create(
           key,
-          this._catalog.cartItemName(item, info.variant),
-          this._catalog.getPrice(item, info.variant),
+          chosen.name,
+          chosen.price,
           delta
         ));
       } else {
