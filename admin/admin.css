@@ -652,6 +652,15 @@ body.role-mesero .content-area{padding-top:2px}
 body.role-mesero .o-card{border-left:4px solid var(--primary)}
 body.role-mesero #newOrderModal .modal-foot{position:sticky;bottom:0;z-index:4}
 @media(max-width:820px){body.role-mesero .hd-info span{display:block;font-size:9px}body.role-mesero .hd-info span::after{content:' · Mesero'}body.role-mesero .tab-bar{height:62px}body.role-mesero .content-area{padding-bottom:76px}body.role-mesero .fab{width:64px;height:64px;border-radius:20px;font-size:32px}body.role-mesero #newOrderModal .modal-body{padding-bottom:8px}body.role-mesero #newOrderModal .modal-foot .btn{min-height:52px;font-size:14px}}
+/* Productos: contenido legible y desplazamiento dentro de la tarjeta. */
+#productsModal{align-items:center;overflow:hidden}
+#productsModal .modal-card{display:flex;flex-direction:column;max-height:calc(100vh - 32px);margin:0;overflow:hidden;background:#fff}
+#productsModal .modal-head{flex:0 0 auto}
+#productsModal .modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:#fff;color:#202431}
+#productsModal #productsList{max-height:none!important;overflow:visible!important;padding-bottom:12px}
+#productsModal .user-row{background:#fff;color:#202431;border-color:#e1e5ec}
+#productsModal .u-name{color:#171a24}
+@media(max-width:820px){#productsModal{align-items:flex-end;padding:8px}#productsModal .modal-card{max-height:calc(100vh - 16px)}}
 /* Contraste accesible en acciones del pedido */
 .sp-actions .sp-btn{color:#242936;background:#fff;border-color:#dfe3eb}
 .sp-actions .sp-btn:hover,.sp-actions .sp-btn:focus-visible{color:#9e1c52!important;background:#fff0f5!important;border-color:#e8367c!important;outline:none}
