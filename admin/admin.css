@@ -665,6 +665,7 @@ body.role-mesero #newOrderModal .modal-foot{position:sticky;bottom:0;z-index:4}
 #newOrderModal .p-btn span{overflow-wrap:anywhere}
 @media(max-width:1180px){#newOrderModal .modal-body{display:block}#newOrderModal .picker{margin-top:12px}}
 @media(max-width:620px){#newOrderModal{padding:6px}#newOrderModal .modal-card{width:100%;max-width:100%;max-height:calc(100vh - 12px)}#newOrderModal .modal-head,#newOrderModal .modal-body,#newOrderModal .modal-foot{padding-left:14px;padding-right:14px}#newOrderModal .p-grid{grid-template-columns:1fr}#newOrderModal .modal-foot .btn{width:100%}#newOrderModal .no-item{flex-wrap:wrap}#newOrderModal .no-name{flex-basis:100%}}
+.delivery-address-fields{display:grid;gap:9px}.delivery-address-fields label{display:block}.delivery-address-fields label span{display:block;margin:0 0 5px;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase}.delivery-address-fields input{width:100%}
 /* Productos: contenido legible y desplazamiento dentro de la tarjeta. */
 #productsModal{align-items:center;overflow:hidden}
 #productsModal .modal-card{display:flex;flex-direction:column;max-height:calc(100vh - 32px);margin:0;overflow:hidden;background:#fff}

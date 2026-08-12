@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=pos9">
+<link rel="stylesheet" href="admin.css?v=pos10">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -172,7 +172,7 @@
       <div class="frow" id="rowMesa"><label>Mesa</label><input type="number" id="noMesa" value="1" min="1"></div>
       <div class="frow" id="rowName"><label>Nombre (opcional)</label><input type="text" id="noName" placeholder="Nombre del cliente"></div>
       <div class="frow" id="rowPhone"><label>Teléfono</label><input type="text" id="noPhone" placeholder="999 000 0000"></div>
-      <div class="frow" id="rowAddr"><label>Dirección</label><input type="text" id="noAddr" placeholder="Calle, número, colonia..."></div>
+      <div class="frow" id="rowAddr"><label>Dirección de entrega</label><div class="delivery-address-fields"><label><span>Calle *</span><input type="text" id="noStreet" placeholder="Ej. Avenida Central"></label><label><span>Número de casa *</span><input type="text" id="noHouse" placeholder="Ej. 125 A"></label><label><span>Cruzamientos *</span><input type="text" id="noCross" placeholder="Ej. entre Calle 20 y Calle 22"></label><label><span>Colonia o referencia</span><input type="text" id="noColony" placeholder="Ej. Centro, casa azul"></label></div></div>
       <div class="frow"><label>Pago</label>
         <select id="noPay"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select>
       </div>
@@ -487,6 +487,6 @@ if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){var tip=document.getEl
 </script>
 <script src="../js/services/menu-options-service.js?v=2"></script>
 <script src="menu-config.js?v=pos10"></script>
-<script src="admin.js?v=pos12"></script>
+<script src="admin.js?v=pos13"></script>
 </body>
 </html>
