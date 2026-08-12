@@ -9,6 +9,8 @@ import json
 import urllib.parse
 import urllib.request
 
+from package_expander import expandir_items
+
 
 def _request(url, metodo="GET", headers=None, data=None, timeout=20):
     req = urllib.request.Request(url, method=metodo, headers=headers or {})
@@ -62,7 +64,7 @@ def order_a_pedido(fila):
             "nombre": it.get("name") or "",
             "total_linea": round(precio * cant, 2),
         })
-    return {
+    pedido = {
         "folio": fila.get("folio") or "",
         "cliente": fila.get("name") or "",
         "telefono": fila.get("phone") or "",
@@ -76,6 +78,8 @@ def order_a_pedido(fila):
         "items": items,
         "_id_supabase": fila.get("id"),
     }
+    pedido["items_produccion"] = expandir_items(items, fila.get("marca") or "sakura")
+    return pedido
 
 
 def estaciones_por_nombre(url, key, marca):

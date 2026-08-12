@@ -19,7 +19,7 @@ def _cargar_menu(cfg):
 def _agrupar(pedido, buscador, mapa_categorias, mapa_nombres=None):
     """Agrupa ítems por estación. Si mapa_nombres existe, lo usa primero."""
     grupos = {e: [] for e in ESTACIONES}
-    for ln in pedido["items"]:
+    for ln in pedido.get("items_produccion") or pedido["items"]:
         nombre_lower = (ln["nombre"] or "").strip().lower()
         est = None
         if mapa_nombres:

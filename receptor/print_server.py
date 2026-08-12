@@ -10,6 +10,7 @@ import sys
 import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
+from package_expander import expandir_items
 from urllib.parse import urlparse
 
 PORT = 5100
@@ -133,6 +134,7 @@ def imprimir_pedido_admin(data):
 
     # --- Agrupar ítems por estación ---
     items = data.get("items", [])
+    items_produccion = expandir_items(items, marca_key)
     categorias_estacion = CONFIG.get("categorias_estacion", {})
     mapa_nombres = CONFIG.get("estaciones_nombre") or {}
 
@@ -145,7 +147,7 @@ def imprimir_pedido_admin(data):
         buscador = None
 
     grupos = {e: [] for e in ESTACIONES}
-    for item in items:
+    for item in items_produccion:
         nombre = item.get("name", item.get("nombre", ""))
         nombre_lower = nombre.strip().lower() if nombre else ""
         estacion = None
