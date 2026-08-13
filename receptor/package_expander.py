@@ -27,23 +27,29 @@ def expandir_items(items, marca="sakura"):
     """Recibe ítems internos y devuelve los componentes para cocina/sushi/barra."""
     salida = []
     for item in items or []:
+        inicio = len(salida)
+        es_paquete = False
         nombre = str(item.get("nombre") or item.get("name") or "").strip()
         cantidad = int(item.get("cantidad") or item.get("qty") or 1)
         bajo = nombre.lower()
 
         if bajo.startswith("2 rollos x $150"):
+            es_paquete = True
             salida.extend(_rollos(nombre, 2, cantidad))
         elif bajo.startswith("super paquete 4 rollos x $379"):
+            es_paquete = True
             salida.extend(_rollos(nombre, 4, cantidad))
             salida.extend((_linea("Oniguri de Philadelphia Empanizado", 3 * cantidad, "cocina"),
                            _linea("Papas a la Francesa", cantidad, "cocina"),
                            _linea("Nestea", 2 * cantidad, "bebidas")))
         elif bajo.startswith("sakura lunch"):
+            es_paquete = True
             salida.extend(_rollos(nombre, 1, cantidad))
             salida.extend((_linea("Medio Yakimeshi de Pollo", cantidad, "cocina"),
                            _linea("Dedo de Queso Gouda", cantidad, "cocina"),
                            _linea("Nestea", cantidad, "bebidas")))
         elif bajo.startswith("2 yakimeshi de pollo"):
+            es_paquete = True
             salida.append(_linea("Yakimeshi de Pollo", 2 * cantidad, "cocina"))
         elif marca == "mandala" and bajo.startswith("2 rollos x $169"):
             salida.extend(_rollos(nombre, 2, cantidad))
@@ -58,4 +64,8 @@ def expandir_items(items, marca="sakura"):
                            _linea("Panchitos Jalapeños con Philadelphia", cantidad)))
         else:
             salida.append(dict(item))
+        if es_paquete:
+            paquete = nombre.split(" · ", 1)[0]
+            for linea in salida[inicio:]:
+                linea["paquete"] = paquete
     return salida

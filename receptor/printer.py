@@ -176,6 +176,8 @@ def imprimir_estacion(cfg, pedido, estacion, lineas, nombre_impresora):
     subtotal = 0.0
     for ln in lineas:
         t.item(ln["cantidad"], ln["nombre"], ln["total_linea"])
+        if ln.get("paquete"):
+            t.texto("  PAQUETE: " + str(ln["paquete"]), bold=True)
         subtotal += ln["total_linea"]
     t.guion()
     t.linea(f"TOTAL {estacion.upper()}".ljust(t.ancho - len(f"{subtotal:.2f}")) + f"{subtotal:.2f}", "izq", bold=True)

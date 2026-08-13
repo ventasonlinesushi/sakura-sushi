@@ -227,6 +227,8 @@ def imprimir_pedido_admin(data):
             total_items += qty
             linea = f"{qty}x {name}"
             t.linea(linea)
+            if ln.get("paquete"):
+                t.texto("    PAQUETE: " + str(ln["paquete"]), bold=True)
             if comment:
                 t.linea(f"    >> {comment}")
             if prep:
