@@ -467,13 +467,13 @@ function PosReabrir(id){
 }
 function PosArchivar(id){patchOrder(id,{status:"archivado"}).then(refresh);}
 function PosReimprimir(id){var o=state.orders.find(function(x){return x.id===id});if(o)abrirReimpresion(o);}
-function PosCancelModeOn(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;cancelMode[id]={original:JSON.parse(JSON.stringify(o.items||[])),removed:[]};render();}
+function PosCancelModeOn(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var original=JSON.parse(JSON.stringify(o.items||[]));cancelMode[id]={original:original,working:JSON.parse(JSON.stringify(original)),removed:[]};render();}
 function PosCancelModeOff(id){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(o&&d&&d.original)o.items=JSON.parse(JSON.stringify(d.original));delete cancelMode[id];render();}
-function PosCancelFinish(id){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(!o||!d)return;if(!d.removed.length){toast("Selecciona al menos un producto");return}var removed=d.removed.slice(),items=o.items.slice(),total=items.reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0);patchOrder(id,{items:items,total:total}).then(function(){var log=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"CancelLog")||"[]"),raw=localStorage.getItem(SESSION),user=raw?JSON.parse(raw):{};removed.forEach(function(rm){log.push({orderId:id,folio:o.folio,producto:rm.name,cantidad:rm.qty||1,monto:(rm.price||0)*(rm.qty||1),usuario:user.nombre||user.username||"Usuario",fecha:new Date().toISOString()})});if(log.length>500)log=log.slice(-500);localStorage.setItem((BRAND.marca||"store")+"CancelLog",JSON.stringify(log));printCancelTicket(o,removed);delete cancelMode[id];toast(removed.length+" producto(s) cancelado(s). Se imprimió un solo ticket.");refresh()}).catch(function(){toast("No se pudo guardar la cancelación")})}
+function PosCancelFinish(id){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(!o||!d)return;if(!d.removed.length){toast("Selecciona al menos un producto");return}var removed=d.removed.slice(),items=JSON.parse(JSON.stringify(d.working||o.items||[])),total=items.reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0);patchOrder(id,{items:items,total:total}).then(function(){var log=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"CancelLog")||"[]"),raw=localStorage.getItem(SESSION),user=raw?JSON.parse(raw):{};removed.forEach(function(rm){log.push({orderId:id,folio:o.folio,producto:rm.name,cantidad:rm.qty||1,monto:(rm.price||0)*(rm.qty||1),usuario:user.nombre||user.username||"Usuario",fecha:new Date().toISOString()})});if(log.length>500)log=log.slice(-500);localStorage.setItem((BRAND.marca||"store")+"CancelLog",JSON.stringify(log));printCancelTicket(o,removed);delete cancelMode[id];toast(removed.length+" producto(s) cancelado(s). Se imprimió un solo ticket.");refresh()}).catch(function(){toast("No se pudo guardar la cancelación")})}
 function PosChangeStatus(id,st){var o=state.orders.find(function(x){return x.id===id}),final=st==="entregado"&&o&&o.payment==="Pagado Online"?"cobrado":st;patchOrder(id,{status:final}).then(function(){if(final==="cobrado")toast("Pedido entregado y pago online conciliado");refresh()}).catch(function(e){toast("No se pudo cambiar el estado: "+e.message)});}
 function PosEditName(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Nombre:",o.name||"");if(v!==null){patchOrder(id,{name:v}).then(refresh);}}
 function PosEditNotes(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Observaciones:",o.notes||"");if(v!==null){patchOrder(id,{notes:v}).then(refresh);}}
-function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(!o||!d||!o.items||isNaN(ix)||ix>=o.items.length)return;d.removed.push(o.items[ix]);o.items.splice(ix,1);toast("Producto agregado a la cancelación. Falta finalizar.");render();}
+function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(!o||!d||!o.items||isNaN(ix)||ix>=o.items.length)return;d.removed.push(JSON.parse(JSON.stringify(o.items[ix])));o.items.splice(ix,1);d.working=JSON.parse(JSON.stringify(o.items));toast("Producto agregado a la cancelación. Falta finalizar.");render();}
 function PosUpdateDisc(id,inp,isDisc){
   var val=isDisc?Math.min(100,Math.max(0,parseInt(inp.value,10)||0)):Math.max(0,parseInt(inp.value,10)||0);
   var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");if(isDisc)de.d=val;else de.e=val;
@@ -496,6 +496,7 @@ function refresh(){
           newOnline++;
         }
       });
+      orders.forEach(function(o){var d=cancelMode[o.id];if(d&&d.working)o.items=JSON.parse(JSON.stringify(d.working));});
       state.orders=orders;
       if(newOnline>0){
         state.newOnlineCount+=newOnline;
