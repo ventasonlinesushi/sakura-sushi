@@ -163,7 +163,7 @@ function cardHtml(o){
   var metodo = isCobrado ? (o.payment||"") : "";
   return'<div class="o-card'+(isCobrado?" cobrada":"")+(open?" open":"")+'" data-id="'+o.id+'">'+
     '<div class="o-card-top" data-toggle="'+o.id+'"><div class="o-card-left"><span class="o-folio">#'+esc(o.folio)+'</span><span class="o-badge '+s.cls+'">'+s.label+'</span>'+pagoBadge+'<span class="o-client-name">'+esc(o.name||"Cliente")+'</span></div><div class="o-time"><span style="font-weight:800;color:var(--primary);margin-right:8px">'+money(o.total||0)+'</span><span>'+fmtTime(o.created_at)+'</span><span class="o-arrow">V</span></div></div>'+
-    '<div class="o-card-body"><div class="o-meta"><span class="o-meta-item"><span class="mi-icon">'+ti+'</span>'+tl+'</span>'+(o.phone?'<span class="o-meta-item">T '+esc(o.phone)+'</span>':'')+(o.order_type==="domicilio"&&o.address?'<span class="o-meta-item">L '+esc(o.address)+'</span>':'')+(metodo?'<span class="o-meta-item">Q '+esc(metodo)+'</span>':'')+'</div>'+(items?'<div class="o-items">'+items+'</div>':'')+(isCancel?'<div class="o-cancel-hint">Selecciona producto a cancelar</div>':'')+(o.notes?'<div class="o-notes">P '+esc(o.notes)+'</div>':'')+'</div></div>';
+    '<div class="o-card-body"><div class="o-meta"><span class="o-meta-item"><span class="mi-icon">'+ti+'</span>'+tl+'</span>'+(o.phone?'<span class="o-meta-item">T '+esc(o.phone)+'</span>':'')+(o.order_type==="domicilio"&&o.address?'<span class="o-meta-item">L '+esc(o.address)+'</span>':'')+(metodo?'<span class="o-meta-item">Q '+esc(metodo)+'</span>':'')+'</div>'+(items?'<div class="o-items">'+items+'</div>':'')+(isCancel?'<div class="o-cancel-hint">Selecciona productos. Se imprimirá un solo ticket al finalizar. Seleccionados: '+((cancelMode[o.id].removed||[]).length)+'</div>':'')+(o.notes?'<div class="o-notes">P '+esc(o.notes)+'</div>':'')+'</div></div>';
 }
 
 function renderCards(){
@@ -174,7 +174,7 @@ function renderCards(){
     grid.innerHTML=list.map(cardHtml).join("");
     /* Wire cards */
     grid.querySelectorAll("[data-toggle]").forEach(function(el){el.addEventListener("click",function(){var card=el.closest(".o-card");if(!card)return;var id=card.dataset.id;card.classList.toggle("open");if(card.classList.contains("open"))state.seen.add("open_"+id);else state.seen.delete("open_"+id);selectOrder(id);});});
-    grid.querySelectorAll(".o-item-cancel").forEach(function(btn){btn.addEventListener("click",function(e){e.stopPropagation();var id=btn.dataset.id,ix=parseInt(btn.dataset.ix,10),o=state.orders.find(function(x){return x.id===id});if(!o||!o.items||isNaN(ix)||ix>=o.items.length)return;var rm=o.items[ix];o.items=o.items.filter(function(_,i){return i!==ix});patchOrder(id,{items:o.items,total:o.items.reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0)}).then(function(){printCancelTicket(o,rm);toast("X "+esc(rm.name)+" cancelado");refresh()});});});
+    grid.querySelectorAll(".o-item-cancel").forEach(function(btn){btn.addEventListener("click",function(e){e.stopPropagation();PosCancelItem(btn.dataset.id,parseInt(btn.dataset.ix,10));});});
   } catch(e) {
     grid.innerHTML='<div class="empty-state"><span class="es-text" style="color:red">Error al renderizar: '+esc(e.message)+'</span></div>';
   }
@@ -217,7 +217,7 @@ function renderSidePanel(){
     if(canDo("editar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosAgregarPlatillos(\''+id+'\')">➕ Agregar platillos</button><button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Datos cuenta</button>';
     if(canDo("comandar")) acc += '<button class="sp-btn" onclick="PosComandar(\''+id+'\')">🖨 Comandar</button>';
     if(canDo("imprimir")) acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">🧾 Imprimir cuenta</button>';
-    if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOff(\''+id+'\')">Salir cancelar</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
+    if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelFinish(\''+id+'\')">Finalizar e imprimir ('+((cancelMode[id].removed||[]).length)+')</button><button class="sp-btn" onclick="PosCancelModeOff(\''+id+'\')">Deshacer y salir</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
     if(canDo("cambiarEstado")) acc += flows;
     if(canDo("archivar")) acc += '<button class="sp-btn" onclick="PosArchivar(\''+id+'\')">Archivar</button>';
   }
@@ -311,12 +311,12 @@ function printTicket(o,mode){
   xhr.ontimeout=function(){toast("Timeout impresion")};
   xhr.send(body);
 }
-function printCancelTicket(order,item){
+function printCancelTicket(order,items){
   var xhr=new XMLHttpRequest();
   xhr.open("POST","http://"+PRINT_HOST+":5100/cancel",true);
   xhr.setRequestHeader("Content-Type","application/json");
   xhr.timeout=3000;
-  xhr.send(JSON.stringify({marca:BRAND.marca,folio:order.folio,item:item,name:order.name,order_type:order.order_type,address:order.address}));
+  xhr.send(JSON.stringify({marca:BRAND.marca,folio:order.folio,items:items,name:order.name,order_type:order.order_type,address:order.address}));
 }
 
 /* Reimpresion */
@@ -467,12 +467,13 @@ function PosReabrir(id){
 }
 function PosArchivar(id){patchOrder(id,{status:"archivado"}).then(refresh);}
 function PosReimprimir(id){var o=state.orders.find(function(x){return x.id===id});if(o)abrirReimpresion(o);}
-function PosCancelModeOn(id){cancelMode[id]=true;render();}
-function PosCancelModeOff(id){cancelMode[id]=false;render();}
+function PosCancelModeOn(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;cancelMode[id]={original:JSON.parse(JSON.stringify(o.items||[])),removed:[]};render();}
+function PosCancelModeOff(id){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(o&&d&&d.original)o.items=JSON.parse(JSON.stringify(d.original));delete cancelMode[id];render();}
+function PosCancelFinish(id){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(!o||!d)return;if(!d.removed.length){toast("Selecciona al menos un producto");return}var removed=d.removed.slice(),items=o.items.slice(),total=items.reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0);patchOrder(id,{items:items,total:total}).then(function(){var log=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"CancelLog")||"[]"),raw=localStorage.getItem(SESSION),user=raw?JSON.parse(raw):{};removed.forEach(function(rm){log.push({orderId:id,folio:o.folio,producto:rm.name,cantidad:rm.qty||1,monto:(rm.price||0)*(rm.qty||1),usuario:user.nombre||user.username||"Usuario",fecha:new Date().toISOString()})});if(log.length>500)log=log.slice(-500);localStorage.setItem((BRAND.marca||"store")+"CancelLog",JSON.stringify(log));printCancelTicket(o,removed);delete cancelMode[id];toast(removed.length+" producto(s) cancelado(s). Se imprimió un solo ticket.");refresh()}).catch(function(){toast("No se pudo guardar la cancelación")})}
 function PosChangeStatus(id,st){var o=state.orders.find(function(x){return x.id===id}),final=st==="entregado"&&o&&o.payment==="Pagado Online"?"cobrado":st;patchOrder(id,{status:final}).then(function(){if(final==="cobrado")toast("Pedido entregado y pago online conciliado");refresh()}).catch(function(e){toast("No se pudo cambiar el estado: "+e.message)});}
 function PosEditName(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Nombre:",o.name||"");if(v!==null){patchOrder(id,{name:v}).then(refresh);}}
 function PosEditNotes(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var v=prompt("Observaciones:",o.notes||"");if(v!==null){patchOrder(id,{notes:v}).then(refresh);}}
-function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id});if(!o||!o.items||ix>=o.items.length)return;var rm=o.items[ix],log=JSON.parse(localStorage.getItem((BRAND.marca||"store")+"CancelLog")||"[]"),raw=localStorage.getItem(SESSION),user=raw?JSON.parse(raw):{};log.push({orderId:id,folio:o.folio,producto:rm.name,cantidad:rm.qty||1,monto:(rm.price||0)*(rm.qty||1),usuario:user.nombre||user.username||"Usuario",fecha:new Date().toISOString()});if(log.length>500)log=log.slice(-500);localStorage.setItem((BRAND.marca||"store")+"CancelLog",JSON.stringify(log));o.items=o.items.filter(function(_,i){return i!==ix});patchOrder(id,{items:o.items}).then(function(){printCancelTicket(o,rm);toast("X "+esc(rm.name)+" cancelado");refresh()});}
+function PosCancelItem(id,ix){var o=state.orders.find(function(x){return x.id===id}),d=cancelMode[id];if(!o||!d||!o.items||isNaN(ix)||ix>=o.items.length)return;d.removed.push(o.items[ix]);o.items.splice(ix,1);toast("Producto agregado a la cancelación. Falta finalizar.");render();}
 function PosUpdateDisc(id,inp,isDisc){
   var val=isDisc?Math.min(100,Math.max(0,parseInt(inp.value,10)||0)):Math.max(0,parseInt(inp.value,10)||0);
   var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}");if(isDisc)de.d=val;else de.e=val;

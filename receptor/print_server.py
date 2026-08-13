@@ -86,9 +86,9 @@ def imprimir_cancelacion(data):
     marca_key = data.get("marca", "")
     marca_info = CONFIG.get("marcas", {}).get(marca_key, {})
     empresa = marca_info.get("empresa", marca_key.upper() if marca_key else "PEDIDO")
-    item = data.get("item", {})
-    nombre = item.get("name", item.get("nombre", "?"))
-    qty = item.get("qty", item.get("cantidad", 1))
+    items = data.get("items") or ([data.get("item", {})] if data.get("item") else [])
+    if not items:
+        return False, "sin productos"
 
     impresora_caja = CONFIG.get("impresoras", {}).get("caja", "")
     if not impresora_caja:
@@ -108,11 +108,18 @@ def imprimir_cancelacion(data):
         t.linea(f"Cliente: {data['name']}")
     t.guion()
     t.linea("SE CANCELO:", bold=True)
-    importe_str = f"${(item.get('price',0) * qty):.2f}"
-    linea = f"{qty}x {nombre}"
-    linea = linea[:ancho - len(importe_str) - 1]
-    t.linea(linea.ljust(ancho - len(importe_str)) + importe_str)
+    total_cancelado = 0.0
+    for item in items:
+        nombre = item.get("name", item.get("nombre", "?"))
+        qty = item.get("qty", item.get("cantidad", 1))
+        importe = item.get("price", 0) * qty
+        total_cancelado += importe
+        importe_str = f"${importe:.2f}"
+        linea = f"{qty}x {nombre}"
+        linea = linea[:ancho - len(importe_str) - 1]
+        t.linea(linea.ljust(ancho - len(importe_str)) + importe_str)
     t.guion()
+    t.linea("TOTAL CANCELADO".ljust(ancho - 8) + f"${total_cancelado:.2f}".rjust(8), bold=True)
     t.linea("FAVOR DE NO PREPARAR", "cen", bold=True)
     t.linea("")
     t.linea(f"{'·' * ancho}")
