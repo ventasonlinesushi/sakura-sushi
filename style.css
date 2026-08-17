@@ -361,3 +361,81 @@ footer .card-link {
   font-weight: 800; text-decoration: none; border: 1.5px solid var(--primary);
   border-radius: 999px; padding: 8px 16px; font-size: 13px;
 }
+
+/* ---------- Experiencia moderna 2026 ---------- */
+:root {
+  --bg: #f7f3ef;
+  --card: rgba(255,255,255,.94);
+  --text: #241f20;
+  --muted: #756d6f;
+  --border: #e9dfd7;
+  --primary: #c94b72;
+  --primary-dark: #8f294d;
+  --black: #171214;
+  --gold: #c6a15b;
+  --radius: 20px;
+  --shadow: 0 10px 30px rgba(52,38,42,.08);
+  --shadow-lg: 0 24px 70px rgba(20,13,16,.28);
+}
+body {
+  background:
+    radial-gradient(circle at 8% 4%, rgba(201,75,114,.08), transparent 28rem),
+    radial-gradient(circle at 92% 18%, rgba(198,161,91,.10), transparent 32rem),
+    linear-gradient(180deg, #fbf9f6, #f5f0eb);
+}
+header {
+  padding: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(201,75,114,.22), transparent 24rem),
+    linear-gradient(135deg, #151113 0%, #241a1e 56%, #302125 100%);
+  border-bottom: 1px solid rgba(198,161,91,.42);
+  box-shadow: 0 12px 36px rgba(30,20,24,.16);
+}
+.hero { max-width: 960px; margin: 0 auto; padding: 34px 22px 24px; text-align: center; }
+.hero-logo { width: 96px; height: 96px; border: 1px solid rgba(198,161,91,.75); box-shadow: 0 16px 42px rgba(0,0,0,.34); }
+.hero-badge { display: block; width: max-content; max-width: 100%; margin: 2px auto 0; background: rgba(198,161,91,.10); border-color: rgba(198,161,91,.42); color: #e2c481; }
+.hero h1 { font-size: clamp(32px, 6vw, 48px); line-height: 1.05; letter-spacing: -.8px; }
+.hero-sub { color: #ded4d7; font-size: 15px; }
+.hero-actions { justify-content: center; flex-wrap: wrap; }
+.hero-phone, .hero-wa { background: rgba(255,255,255,.96); color: #34262b; border: 1px solid rgba(198,161,91,.45); box-shadow: none; }
+.hero-cart { border-color: rgba(198,161,91,.5); background: rgba(198,161,91,.12); }
+nav#cats { top: 0; padding: 12px max(14px, calc((100vw - 960px)/2)); background: rgba(250,247,243,.94); border-bottom: 1px solid rgba(198,161,91,.22); backdrop-filter: blur(14px); }
+.chip { border-color: #e4d9d1; box-shadow: 0 3px 12px rgba(60,44,49,.04); }
+.chip.active { background: #21191c; border-color: #21191c; color: #f2d99d; box-shadow: 0 7px 20px rgba(30,20,24,.18); }
+main { max-width: 960px; padding: 16px 18px 160px; }
+.loyalty-card { background: linear-gradient(135deg, #1b1517, #302126); border-color: rgba(198,161,91,.52); box-shadow: 0 18px 44px rgba(29,20,23,.16); }
+.cat-title { font-size: 20px; margin-top: 28px; }
+.cat-title::after { background: linear-gradient(90deg, rgba(198,161,91,.55), transparent); }
+.items { gap: 12px; }
+.item { min-height: 92px; padding: 15px; border-color: rgba(198,161,91,.20); box-shadow: var(--shadow); transition: transform .18s, box-shadow .18s, border-color .18s; }
+.item:hover { transform: translateY(-2px); border-color: rgba(198,161,91,.52); box-shadow: 0 15px 34px rgba(52,38,42,.12); }
+.item-icon { border-radius: 18px; }
+.item-name { font-size: 15px; }
+.item-price { color: var(--primary-dark); }
+.featured { background: linear-gradient(145deg, #21191c, #3a2930) !important; border: 1px solid rgba(198,161,91,.42); }
+.featured .f-star { background: rgba(198,161,91,.16); color: #efd89f; }
+.add-btn, .btn-primary { background: linear-gradient(135deg, #d35f82, #9a3155); box-shadow: 0 7px 18px rgba(154,49,85,.24); }
+.float-cart { left: max(12px, calc((100vw - 700px)/2)); right: max(12px, calc((100vw - 700px)/2)); background: linear-gradient(135deg, #171214, #2b2024); border: 1px solid rgba(198,161,91,.58); }
+.drawer, .sheet { background: #f8f4f0; }
+.drawer-head, .drawer-foot { background: rgba(255,255,255,.96); }
+.checkout { max-width: 680px; padding-top: 28px; }
+.checkout h2 { font-size: 26px; }
+.field input, .field select, .field textarea, .order-sum { border-color: #e5d9d1; box-shadow: 0 6px 20px rgba(52,38,42,.04); }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(198,161,91,.14); }
+.seg .opt.active, .sheet .variant-opt.active, .pkg-opt.active { background: #fff4f7; border-color: var(--primary); }
+footer { color: #766c6f; }
+footer .card-link { color: #7e6240; border-color: rgba(198,161,91,.75); background: rgba(255,255,255,.55); }
+@media (min-width: 760px) {
+  .items { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .featured { flex-basis: 210px; min-height: 175px; }
+  .sheet { left: 50%; right: auto; width: min(620px, calc(100% - 32px)); transform: translate(-50%, 110%); border-radius: 24px 24px 0 0; }
+  .sheet.show { transform: translate(-50%, 0); }
+}
+@media (max-width: 480px) {
+  .hero { padding-top: 26px; }
+  .hero-logo { width: 82px; height: 82px; }
+  .hero h1 { margin-top: 12px; }
+  .item { padding: 12px; }
+  .item-icon { width: 50px; height: 50px; }
+}
