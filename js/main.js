@@ -109,17 +109,20 @@
 
   if (sb && sb.url && sb.key) {
     const url = sb.url.replace(/\/$/, "") + "/rest/v1/menu_items?marca=eq." + encodeURIComponent(brand.marca || "") + "&order=categoria,orden";
-    fetch(url, { headers: { "apikey": sb.key, "Authorization": "Bearer " + sb.key } })
-      .then(function (r) { return r.json(); })
+    fetch(url, { cache:"no-store", headers: { "apikey": sb.key, "Authorization": "Bearer " + sb.key, "Cache-Control":"no-cache" } })
+      .then(function (r) { if(!r.ok) throw new Error("No se pudo actualizar el menú"); return r.json(); })
       .then(function (rows) {
         var cats = [], catMap = {};
         PosApp.menuConfig = rows.filter(function(p){ return p.categoria === "__POS_CONFIG__"; }).map(function(p){ try { return JSON.parse(p.descripcion || "{}"); } catch(e) { return null; } }).filter(function(x){ return x && x.active !== false; });
-        rows.filter(function(p){ return p.categoria !== "__POS_CONFIG__" && p.disponible === true; }).forEach(function (p) {
+        var packages = {};
+        rows.filter(function(p){ return p.categoria === "__POS_PACKAGES__" && p.disponible !== false; }).forEach(function(p){ try { var x=JSON.parse(p.descripcion||"{}"); if(x.name)packages[x.name]=x; } catch(e){} });
+        rows.filter(function(p){ return p.categoria !== "__POS_CONFIG__" && p.categoria !== "__POS_PACKAGES__" && p.disponible === true; }).forEach(function (p) {
           if (!catMap[p.categoria]) {
             catMap[p.categoria] = { name: p.categoria, items: [] };
             cats.push(catMap[p.categoria]);
           }
           var local = staticItem(p.categoria, p.nombre) || {};
+          var pkg = packages[p.nombre];
           catMap[p.categoria].items.push({
             name: p.nombre,
             price: p.precio,
@@ -127,7 +130,7 @@
             category: p.categoria,
             id: p.id,
             variants: local.variants,
-            package: local.package,
+            package: pkg ? { count:pkg.choose||0, rolls:pkg.options||[], options:pkg.options||[], fixed:pkg.fixed||[], repeat:pkg.repeat!==false, groups:pkg.groups||[] } : local.package,
             featured: local.featured,
             emoji: local.emoji
           });

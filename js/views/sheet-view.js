@@ -74,17 +74,23 @@
 
     /* ---------- Paquete ---------- */
     openPkg(ci, ii, item) {
-      const n = this.pkg.countOf(item);
       this.pendingPkg = { ci, ii, item };
-      this.pkgSelected = [];
+      this.pkgGroups = item.package.groups && item.package.groups.length ? item.package.groups : [{ name:"Opciones", choose:this.pkg.countOf(item), repeat:item.package.repeat!==false, options:item.package.rolls||[] }];
+      this.pkgGroupSelected = this.pkgGroups.map(() => []);
       this.e.pkgTitle.textContent = item.name;
-      const repetir = n > 1 ? " Puedes repetir el mismo." : "";
-      this.e.pkgDesc.textContent = "Elige " + n + (n === 1 ? " rollo:" : " rollos:") + repetir;
+      this.e.pkgDesc.textContent = "Completa cada grupo del paquete:";
       this.e.pkgOptions.innerHTML = "";
-      item.package.rolls.forEach(roll => {
+      this.pkgGroups.forEach((group, gi) => {
+        const heading = document.createElement("div");
+        heading.className = "pkg-group-title";
+        heading.textContent = (group.name || ("Grupo " + (gi + 1))) + " — escoge " + (group.choose || 1) + (group.repeat !== false ? " (puedes repetir)" : "");
+        this.e.pkgOptions.appendChild(heading);
+        (group.options || []).forEach(option => {
+        const roll = typeof option === "string" ? option : option.name;
         const opt = document.createElement("div");
         opt.className = "pkg-opt";
         opt.dataset.roll = roll;
+        opt.dataset.group = String(gi);
         const check = document.createElement("span");
         check.className = "pkg-check";
         check.textContent = "○";
@@ -96,28 +102,31 @@
         leg.textContent = "$" + item.price;
         opt.appendChild(check); opt.appendChild(label); opt.appendChild(leg);
         opt.onclick = () => {
-          const count = this.pkgSelected.filter(r => r === roll).length;
-          if (count >= n) {
-            this.pkgSelected.splice(this.pkgSelected.lastIndexOf(roll), 1);
-          } else if (this.pkgSelected.length >= n) {
-            alert("Solo puedes elegir " + n + (n === 1 ? " rollo." : " rollos."));
+          const selected = this.pkgGroupSelected[gi], n = group.choose || 1;
+          const count = selected.filter(r => r === roll).length;
+          if (group.repeat === false && count >= 1) {
+            selected.splice(selected.lastIndexOf(roll), 1);
+          } else if (selected.length >= n) {
+            alert("En " + group.name + " solo puedes elegir " + n + ".");
             return;
           } else {
-            this.pkgSelected.push(roll);
+            selected.push(roll);
           }
           this._updatePkgUI();
         };
         this.e.pkgOptions.appendChild(opt);
+        });
       });
       this._updatePkgUI();
       this._show(this.e.pkgSheet);
     }
 
     confirmPackage() {
-      const n = this.pkg.countOf(this.pendingPkg ? this.pendingPkg.item : null);
-      if (!this.pendingPkg || this.pkgSelected.length !== n) return;
+      if (!this.pendingPkg || !this.pkgGroups.every((g,i) => this.pkgGroupSelected[i].length === (g.choose||1))) return;
       const { ci, ii, item } = this.pendingPkg;
-      this.hooks.onPkgConfirm && this.hooks.onPkgConfirm(ci, ii, item, this.pkgSelected.slice());
+      item._packageSelections = this.pkgGroups.map((g,i) => ({name:g.name,selected:this.pkgGroupSelected[i].slice()}));
+      const selected = this.pkgGroupSelected.reduce((all,x) => all.concat(x), []);
+      this.hooks.onPkgConfirm && this.hooks.onPkgConfirm(ci, ii, item, selected);
       this.closePkg();
     }
 
@@ -126,23 +135,25 @@
     }
 
     _updatePkgUI() {
-      const n = this.pkg.countOf(this.pendingPkg ? this.pendingPkg.item : null);
       this.e.pkgOptions.querySelectorAll(".pkg-opt").forEach(opt => {
+        const gi = Number(opt.dataset.group || 0);
         const roll = opt.dataset.roll;
-        const count = this.pkgSelected.filter(r => r === roll).length;
+        const count = (this.pkgGroupSelected[gi] || []).filter(r => r === roll).length;
         const check = opt.querySelector(".pkg-check");
         check.textContent = count > 0 ? "●" : "○";
         const lbl = opt.querySelector(".pkg-label");
         lbl.textContent = count > 1 ? roll + " ×" + count : roll;
         opt.classList.toggle("active", count > 0);
       });
-      this.e.pkgCount.textContent = "Seleccionados: " + (this.pkgSelected.join(" + ") || "ninguno");
+      const summaries = this.pkgGroups.map((g,i) => (g.name||("Grupo "+(i+1)))+": "+this.pkgGroupSelected[i].length+"/"+(g.choose||1));
+      this.e.pkgCount.textContent = summaries.join(" · ");
       const btn = this.e.pkgAdd;
-      btn.disabled = this.pkgSelected.length !== n;
+      const complete = this.pkgGroups.every((g,i) => this.pkgGroupSelected[i].length === (g.choose||1));
+      btn.disabled = !complete;
       const item = this.pendingPkg ? this.pendingPkg.item : null;
-      btn.textContent = this.pkgSelected.length === n
+      btn.textContent = complete
         ? "Agregar " + this.currency.format(item.price)
-        : "Agregar (" + this.pkgSelected.length + "/" + n + ")";
+        : "Completa todos los grupos";
     }
 
     _show(el) {

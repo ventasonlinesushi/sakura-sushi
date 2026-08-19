@@ -87,18 +87,27 @@
       const ci = pkgInfo.ci;
       const ii = pkgInfo.ii;
       const item = pkgInfo.item;
-      const n = this.pkgCountOf(item);
-      if (selected.length !== n) return cart;
+      const groups = item.package.groups || [];
+      const required = groups.length ? groups.reduce((n,g) => n + (g.choose||1), 0) : this.pkgCountOf(item);
+      if (selected.length !== required) return cart;
 
       const sorted = selected.slice().sort();
-      const key = "pkg:" + ci + ":" + ii + ":" + sorted.join("+");
+      const groupKey = (item._packageSelections||[]).map(g => g.name+"="+(g.selected||[]).slice().sort().join("+")).join("|");
+      const key = "pkg:" + ci + ":" + ii + ":" + (groupKey||sorted.join("+"));
       const result = cart.slice();
       const entry = result.find(e => e.key === key);
 
       if (entry) {
-        result[result.indexOf(entry)] = global.PosApp.CartItem.create(entry.key, entry.name, entry.price, entry.qty + 1);
+        const updated = global.PosApp.CartItem.create(entry.key, entry.name, entry.price, entry.qty + 1);
+        updated.package_detail = entry.package_detail;
+        updated.desc = entry.desc;
+        result[result.indexOf(entry)] = updated;
       } else {
-        result.push(global.PosApp.CartItem.create(key, item.name + " · " + sorted.join(" + "), item.price, 1));
+        const created = global.PosApp.CartItem.create(key, item.name + (sorted.length ? " · " + sorted.join(" + ") : ""), item.price, 1);
+        const options = groups.length ? groups.reduce((all,g) => all.concat(g.options||[]), []) : (item.package.options||item.package.rolls||[]);
+        created.package_detail = { name:item.name, selected:selected.slice(), selected_groups:(item._packageSelections||[]), groups:groups, fixed:(item.package.fixed||[]), options:options };
+        created.desc = JSON.stringify(created.package_detail);
+        result.push(created);
       }
       return result;
     }

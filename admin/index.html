@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=pos11">
+<link rel="stylesheet" href="admin.css?v=pos13">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -296,6 +296,7 @@
     <div class="modal-head"><h2>📦 Gestión de productos</h2><button class="btn ghost" id="closeProductsBtn" onclick="document.getElementById('productsModal').classList.add('hidden')">✕</button></div>
     <div class="modal-body">
       <button class="btn ghost menu-config-open" onclick="PosMenuConfig.open()">⚙ Categorías, modificadores y comentarios</button>
+      <div class="frow"><label>Tipo de artículo</label><select id="pmType" onchange="PosPackageManager.articleType(this.value)"><option value="normal">Producto normal</option><option value="package">Paquete o promoción</option></select></div>
       <div class="frow"><label>Categoría</label><input type="text" id="pmCat" placeholder="Ej. Entradas" list="pmCatList"><datalist id="pmCatList"></datalist></div>
       <div class="frow"><label>Nombre</label><input type="text" id="pmName" placeholder="Nombre del platillo"></div>
       <div class="frow"><label>Precio</label><input type="number" id="pmPrice" placeholder="0" min="0"></div>
@@ -314,6 +315,28 @@
   <div class="modal-card menu-config-card">
     <div class="modal-head"><h2>Configuración profesional del menú</h2><button class="btn ghost" onclick="document.getElementById('menuConfigModal').classList.add('hidden')">✕</button></div>
     <div class="modal-body" id="menuConfigContent"><div class="empty">Cargando configuración...</div></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="packageModal">
+  <div class="modal-card" style="max-width:720px;max-height:92vh;overflow:auto">
+    <div class="modal-head"><h2>Crear o editar paquete</h2><button class="btn ghost" onclick="document.getElementById('packageModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body">
+      <div class="frow"><label>Nombre del paquete</label><input id="pkgName" placeholder="Ej. Paquete familiar"></div>
+      <div class="frow"><label>Precio</label><input id="pkgPrice" type="number" min="0"></div>
+      <div class="frow"><label>Descripción para clientes</label><textarea id="pkgDesc" rows="2"></textarea></div>
+      <div class="pkg-builder-help">Agrega artículos ya creados. Cada uno conservará automáticamente su estación de impresión.</div>
+      <div class="frow"><label>Buscar artículo existente</label><input id="pkgProductSearch" placeholder="Escribe el nombre o categoría" oninput="PosPackageManager.renderProducts()"></div>
+      <div id="pkgProductCatalog" class="pkg-product-catalog"></div>
+      <div class="pkg-builder-grid">
+        <section><h3>Incluidos fijos</h3><small>Siempre salen con el paquete</small><div id="pkgFixedBuilder" class="pkg-selected-list"></div></section>
+        <section><h3>Grupos de selección</h3><small>Ej. Rollos: elegir 5; Entradas: elegir 2</small><button type="button" class="btn ghost" onclick="PosPackageManager.addGroup()" style="width:100%;margin:8px 0">+ Nuevo grupo</button><div id="pkgGroupsBuilder"></div></section>
+      </div>
+      <div id="pkgActiveGroup" class="hidden"><h3 id="pkgActiveGroupTitle">Opciones del grupo</h3><div id="pkgOptionsBuilder" class="pkg-selected-list"></div></div>
+      <input id="pkgCount" type="hidden" value="0"><input id="pkgRepeat" type="checkbox" hidden>
+      <textarea id="pkgOptions" hidden></textarea><textarea id="pkgFixed" hidden></textarea>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px"><button class="btn danger hidden" id="deletePackageBtn" onclick="PosPackageManager.removePackage()">Eliminar paquete</button><button class="btn btn-primary" id="savePackageBtn" onclick="PosPackageManager.save()" style="padding:12px">Guardar paquete</button></div>
+    </div>
   </div>
 </div>
 
@@ -338,6 +361,19 @@
       <div class="frow"><label>Concepto</label><input type="text" id="movConcepto" placeholder="Ej. Cambio, insumos..."></div>
       <div class="frow"><label>Monto</label><input type="number" id="movMonto" placeholder="0" min="1"></div>
       <button class="btn btn-primary" onclick="guardarMovimiento()" style="width:100%;margin-top:10px;padding:12px;font-weight:800">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="salidaCajaModal">
+  <div class="modal-card" style="max-width:390px">
+    <div class="modal-head"><h2 id="salidaCajaTitle">Retiro de caja</h2><button class="btn ghost" onclick="document.getElementById('salidaCajaModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body">
+      <div class="frow hidden" id="salidaMeseroRow"><label>Mesero o usuario que cobró</label><input id="salidaMesero" placeholder="Selecciona un usuario" list="propinasUsuarios" oninput="actualizarPropinaDisponible()"><datalist id="propinasUsuarios"></datalist><small id="propinaDisponible" style="display:block;margin-top:5px;color:var(--green);font-weight:700"></small></div>
+      <div class="frow"><label id="salidaMotivoLabel">Motivo del retiro</label><input id="salidaMotivo" placeholder="Ej. compra de insumos"></div>
+      <div class="frow"><label>Monto</label><input id="salidaMonto" type="number" min="1" step="0.01" placeholder="0.00"></div>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0">Se descontará del efectivo de caja y se imprimirá un comprobante.</p>
+      <button class="btn btn-primary" id="salidaGuardarBtn" onclick="guardarSalidaCaja()" style="width:100%;padding:12px">Guardar e imprimir</button>
     </div>
   </div>
 </div>
@@ -487,6 +523,7 @@ if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){var tip=document.getEl
 </script>
 <script src="../js/services/menu-options-service.js?v=2"></script>
 <script src="menu-config.js?v=pos10"></script>
-<script src="admin.js?v=pos16"></script>
+<script src="admin.js?v=pos29"></script>
+<script src="package-manager.js?v=pos29"></script>
 </body>
 </html>
