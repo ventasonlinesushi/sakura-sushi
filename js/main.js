@@ -127,6 +127,7 @@
             name: p.nombre,
             price: p.precio,
             desc: local.package ? (local.desc || p.descripcion || "") : (p.descripcion || local.desc || ""),
+            image: p.image_url || local.image || "",
             category: p.categoria,
             id: p.id,
             variants: local.variants,

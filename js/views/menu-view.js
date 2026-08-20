@@ -158,7 +158,13 @@
 
       const em = document.createElement("div");
       em.className = "f-emoji";
-      em.textContent = item.emoji || "🍣";
+      if (item.image) {
+        const image = document.createElement("img");
+        image.src = item.image;
+        image.alt = item.name;
+        image.loading = "lazy";
+        em.appendChild(image);
+      } else em.textContent = item.emoji || "🍣";
       div.appendChild(em);
 
       const n = document.createElement("div");
@@ -184,7 +190,7 @@
       const key = this.catalog.key(ci, ii, null);
       const qty = this.cart.qtyOf(key);
 
-      div.appendChild(this._iconTile(item.name, item.emoji));
+      div.appendChild(this._iconTile(item.name, item.emoji, item.image));
 
       const info = document.createElement("div");
       info.className = "item-info";
@@ -215,11 +221,17 @@
       return div;
     }
 
-    _iconTile(name, emoji) {
+    _iconTile(name, emoji, imageUrl) {
       const d = document.createElement("div");
       d.className = "item-icon";
       d.style.background = this.gradient.gradientFor(name);
-      d.textContent = emoji || name.charAt(0);
+      if (imageUrl) {
+        const image = document.createElement("img");
+        image.src = imageUrl;
+        image.alt = name;
+        image.loading = "lazy";
+        d.appendChild(image);
+      } else d.textContent = emoji || name.charAt(0);
       return d;
     }
 
