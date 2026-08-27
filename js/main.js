@@ -8,6 +8,32 @@
 
   const brand = PosApp.brandConfig;
 
+  function minutes(value) {
+    var p = String(value || "").split(":"), h = Number(p[0]), m = Number(p[1]);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 0;
+  }
+
+  function businessStatus(now) {
+    var cfg = PosApp.businessHours || brand.businessHours;
+    if (!cfg || !cfg.days) return { open: true, message: "Abierto para pedidos" };
+    var zone = cfg.timezone || "America/Merida", parts = {};
+    new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(now || new Date()).forEach(function (p) { parts[p.type] = p.value; });
+    var dayMap = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 }, day = dayMap[parts.weekday], rule = cfg.days[day] || cfg.days[String(day)];
+    if (!rule || rule.enabled === false) return { open:false, message:"Cerrado hoy · pedidos en línea no disponibles" };
+    var current = Number(parts.hour) * 60 + Number(parts.minute), start = minutes(rule.open), end = minutes(rule.close);
+    var isOpen = end >= start ? current >= start && current < end : current >= start || current < end;
+    return { open:isOpen, message:isOpen ? ("Abierto · pedidos hasta " + rule.close) : ("Cerrado · abrimos a las " + rule.open), rule:rule };
+  }
+
+  PosApp.getBusinessStatus = businessStatus;
+
+  function renderBusinessStatus() {
+    var el = document.getElementById("businessStatus"); if (!el) return;
+    var status = businessStatus(); el.textContent = (status.open ? "🟢 " : "🔴 ") + status.message;
+    el.classList.toggle("open", status.open); el.classList.toggle("closed", !status.open);
+  }
+
   function initApp(menuData) {
     PosApp.menuData = menuData;
 
@@ -82,6 +108,8 @@
     /* ----- Arranque ----- */
     const app = container.resolve("appView");
     app.init();
+    renderBusinessStatus();
+    global.setInterval(renderBusinessStatus, 60000);
 
     /* ----- Funciones globales usadas por los onclick del HTML ----- */
     global.openDrawer = () => app.openDrawer();
@@ -114,6 +142,7 @@
       .then(function (rows) {
         var cats = [], catMap = {};
         PosApp.menuConfig = rows.filter(function(p){ return p.categoria === "__POS_CONFIG__"; }).map(function(p){ try { return JSON.parse(p.descripcion || "{}"); } catch(e) { return null; } }).filter(function(x){ return x && x.active !== false; });
+        PosApp.businessHours = PosApp.menuConfig.find(function(x){ return x.type === "business_hours"; }) || brand.businessHours;
         var packages = {};
         rows.filter(function(p){ return p.categoria === "__POS_PACKAGES__" && p.disponible !== false; }).forEach(function(p){ try { var x=JSON.parse(p.descripcion||"{}"); if(x.name)packages[x.name]=x; } catch(e){} });
         rows.filter(function(p){ return p.categoria !== "__POS_CONFIG__" && p.categoria !== "__POS_PACKAGES__" && p.disponible === true; }).forEach(function (p) {

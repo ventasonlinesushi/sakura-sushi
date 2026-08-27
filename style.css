@@ -442,3 +442,7 @@ footer .card-link { color: #7e6240; border-color: rgba(198,161,91,.75); backgrou
   .item { padding: 12px; }
   .item-icon { width: 50px; height: 50px; }
 }
+/* Estado del horario sincronizado con el panel administrativo. */
+.business-status{display:inline-flex;align-items:center;justify-content:center;margin:8px auto 3px;padding:7px 13px;border-radius:999px;background:#ffffff17;border:1px solid #ffffff2b;color:#fff;font-size:12px;font-weight:800}
+.business-status.open{background:#123d2d;border-color:#45c78c;color:#d9ffec}
+.business-status.closed{background:#4b2026;border-color:#d99b75;color:#ffe7d6}

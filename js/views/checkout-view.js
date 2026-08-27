@@ -101,14 +101,26 @@
       return { name, phone, address, notes, salsas, orderType: this.orderType, payment: this.payment, palitos: this.palitos };
     }
 
-    send() {
+    async send() {
+      const hours = global.PosApp.getBusinessStatus && global.PosApp.getBusinessStatus();
+      if (hours && !hours.open) {
+        alert("En este momento estamos fuera de horario. " + hours.message + ". Tu pedido no fue registrado.");
+        return;
+      }
       const form = this._form();
       if (!form) return;
       const data = this.checkout.orderData(this.cart.items, this.loyalty.line(), form);
-      this.checkout.recordOrder(data, form, this.cart.items);
-      window.open(data.url, "_blank");
-      this.loyalty.registerVisit();
-      this.onSent && this.onSent();
+      const popup = window.open("about:blank", "_blank");
+      try {
+        const record = await this.checkout.recordOrder(data, form, this.cart.items);
+        const confirmed = this.checkout.orderData(this.cart.items, this.loyalty.line(), form, record.folio);
+        if (popup) popup.location.href = confirmed.url; else window.location.href = confirmed.url;
+        this.loyalty.registerVisit();
+        this.onSent && this.onSent();
+      } catch (error) {
+        if (popup) popup.close();
+        alert("No pudimos registrar tu pedido. Revisa tu conexión e inténtalo nuevamente; no se abrió WhatsApp para evitar perderlo.");
+      }
     }
   }
 

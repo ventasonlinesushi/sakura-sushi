@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=pos13">
+<link rel="stylesheet" href="admin.css?v=header-contrast-1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -173,9 +173,7 @@
       <div class="frow" id="rowName"><label>Nombre (opcional)</label><input type="text" id="noName" placeholder="Nombre del cliente"></div>
       <div class="frow" id="rowPhone"><label>Teléfono</label><input type="text" id="noPhone" placeholder="999 000 0000"></div>
       <div class="frow" id="rowAddr"><label>Dirección de entrega</label><div class="delivery-address-fields"><label><span>Calle *</span><input type="text" id="noStreet" placeholder="Ej. Avenida Central"></label><label><span>Número de casa *</span><input type="text" id="noHouse" placeholder="Ej. 125 A"></label><label><span>Cruzamientos *</span><input type="text" id="noCross" placeholder="Ej. entre Calle 20 y Calle 22"></label><label><span>Colonia o referencia</span><input type="text" id="noColony" placeholder="Ej. Centro, casa azul"></label></div></div>
-      <div class="frow"><label>Pago</label>
-        <select id="noPay"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select>
-      </div>
+      <input type="hidden" id="noPay" value="Pendiente">
       <div class="picker">
         <input type="text" id="noSearch" placeholder="🔍 Buscar platillo...">
         <div class="tabs" id="noTabs"></div>
@@ -304,7 +302,9 @@
       <div class="frow"><label>Stock (inventario)</label><input type="number" id="pmStock" placeholder="Cantidad disponible" min="0"></div>
       <div class="frow"><label>Notas de preparación</label><input type="text" id="pmPrep" placeholder="Ej. cortar en 8 piezas, salsa aparte"></div>
       <div class="frow"><label>Descripción</label><input type="text" id="pmDesc" placeholder="Opcional"></div>
-      <button class="btn btn-primary" id="addProductBtn" onclick="addProduct()" style="width:100%;margin-top:12px;padding:12px;font-weight:800">➕ Agregar producto</button>
+      <div class="frow"><label>Foto del platillo (opcional)</label><input type="file" id="pmImage" accept="image/jpeg,image/png,image/webp" onchange="PosPreviewImage(this)"><small style="color:var(--muted)">Se ajusta automáticamente y aparecerá en la página de pedidos.</small></div>
+      <div id="pmImageBox" class="hidden" style="display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:12px"><img id="pmImagePreview" alt="Vista previa" style="width:72px;height:72px;object-fit:cover;border-radius:10px"><button type="button" class="btn-sm danger" onclick="PosRemoveImage()">Quitar foto</button></div>
+      <button class="btn btn-primary" id="addProductBtn" style="width:100%;margin-top:12px;padding:12px;font-weight:800">➕ Agregar producto</button>
       <div style="margin-top:16px"><input type="text" id="pmSearch" placeholder="🔍 Buscar producto..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px"></div>
       <div id="productsList" style="margin-top:10px;max-height:400px;overflow-y:auto"></div>
     </div>
@@ -492,38 +492,22 @@ async function _doLogin(){
   if(!u||!p||!u.value.trim()||!p.value)return;
   if(btn){btn.textContent="Verificando...";btn.disabled=true}
   try{
-    // 1. Obtener usuario de Supabase
-    var user = await new Promise(function(resolve,reject){
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", LOGIN_API.replace("/orders","/usuarios")+"?username=eq."+encodeURIComponent(u.value.trim())+"&select=*&limit=1",true);
-      xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
-      xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
-      xhr.timeout=8000;
-      xhr.onload=function(){if(xhr.status===200){var d=JSON.parse(xhr.responseText);resolve(d[0]||null)}else{reject(new Error("HTTP "+xhr.status))}};
-      xhr.onerror=function(){reject(new Error("Red"))};
-      xhr.ontimeout=function(){reject(new Error("Timeout"))};
-      xhr.send();
-    });
-    // 2. Validar
-    if(!user){if(btn)btn.textContent="No encontrado";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
-    if(!user.activo){if(btn)btn.textContent="Inactivo";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
-    // 3. Hash
-    var h = await _loginHash(p.value);
-    if(user.password_hash !== h){if(btn)btn.textContent="Contrasena incorrecta";p.value="";setTimeout(function(){if(btn)btn.textContent="Entrar";btn.disabled=false},1500);return}
-    // 4. OK
+    var response=await fetch("https://edquyomwiiaawqslsisd.supabase.co/functions/v1/pos-session",{method:"POST",headers:{"Content-Type":"application/json","apikey":"sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf"},body:JSON.stringify({action:"login",username:u.value.trim(),password:p.value,marca:LOGIN_BRAND.marca||"sakura"})});
+    var result=await response.json();if(!response.ok)throw new Error(result.error||"No se pudo iniciar sesion");
+    var user=result.user;
     if(btn)btn.textContent="Entrando...";
-    localStorage.setItem(LOGIN_SESSION,JSON.stringify({username:user.username,nombre:user.nombre,rol:user.rol,password_hash:user.password_hash}));
+    localStorage.setItem(LOGIN_SESSION,JSON.stringify({username:user.username,nombre:user.nombre,rol:user.rol,marca:user.marca,pos_token:result.token,expires_at:result.expires_at}));
     document.getElementById("pinScreen").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     try { initApp(); } catch(e) { alert(e.message); }
-  }catch(err){if(btn){btn.textContent="Error: "+(err.message||err);btn.disabled=false}}
+  }catch(err){p.value="";if(btn){btn.textContent="Error: "+(err.message||err);btn.disabled=false}}
 }
 (function w(){var lb=document.getElementById("loginBtn"),lp=document.getElementById("loginPass");if(lb&&lp){lb.addEventListener("click",_doLogin);lp.addEventListener("keydown",function(e){if(e.key==="Enter")_doLogin()})}else{setTimeout(w,50)}})();
 if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){var tip=document.getElementById("installTip");if(tip)tip.style.display="block";}
 </script>
 <script src="../js/services/menu-options-service.js?v=2"></script>
-<script src="menu-config.js?v=pos10"></script>
-<script src="admin.js?v=pos29"></script>
+<script src="menu-config.js?v=business-hours-1"></script>
+<script src="admin.js?v=product-images-1"></script>
 <script src="package-manager.js?v=pos29"></script>
 </body>
 </html>
