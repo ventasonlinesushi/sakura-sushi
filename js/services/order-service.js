@@ -10,7 +10,8 @@
     }
 
     folioText(n) {
-      return ("000" + String(n)).slice(-4);
+      const value = String(n == null ? "" : n).trim().slice(-4);
+      return ("0000" + value).slice(-4);
     }
 
     buildRecord(fields) {
@@ -31,7 +32,8 @@
           name: c.name,
           qty: c.qty,
           price: c.price,
-          desc: c.desc || ""
+          desc: c.desc || "",
+          package_detail: c.package_detail || null
         })),
         total: fields.total
       };
@@ -70,16 +72,14 @@
 
     pushOrder(record, supabase) {
       if (!supabase || !supabase.url || !supabase.key) return Promise.resolve(false);
-      return fetch(supabase.url.replace(/\/$/, "") + "/rest/v1/orders", {
+      return fetch(supabase.url.replace(/\/$/, "") + "/functions/v1/pos-orders", {
         method: "POST",
         headers: {
           "apikey": supabase.key,
-          "Authorization": "Bearer " + supabase.key,
-          "Content-Type": "application/json",
-          "Prefer": "return=minimal"
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          folio: record.folio,
+          action: "public.submit",
           name: record.name,
           phone: record.phone,
           order_type: record.orderType,
@@ -91,9 +91,12 @@
           marca: record.marca || "",
           items: record.items,
           total: record.total,
-          status: "nuevo"
+          website: ""
         })
-      }).then(r => r.ok).catch(() => false);
+      }).then(async r => {
+        const result = await r.json().catch(() => ({}));
+        return r.ok && result.data ? result.data : false;
+      }).catch(() => false);
     }
   }
 

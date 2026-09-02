@@ -17,8 +17,8 @@
       return this._brand.phoneDisplay;
     }
 
-    orderData(cart, loyaltyLine, form) {
-      const folio = this._orderRepo.nextFolio();
+    orderData(cart, loyaltyLine, form, confirmedFolio) {
+      const folio = confirmedFolio || this._orderRepo.nextFolio();
       const options = {
         business: this._brand.business,
         name: form.name,
@@ -40,7 +40,7 @@
       };
     }
 
-    recordOrder(data, form, cart) {
+    async recordOrder(data, form, cart) {
       const record = this._orders.buildRecord({
         folio: data.folio,
         name: form.name,
@@ -55,9 +55,12 @@
         cart,
         total: this._cart.total(cart)
       });
+      const saved = await this._orders.pushOrder(record, this._brand.supabase);
+      if (!saved) throw new Error("No se pudo registrar el pedido en el restaurante");
+      record.folio = saved.folio;
+      record.id = saved.id;
       this._orderRepo.save(record);
       this._orders.notify(record, this._brand.sheetsUrl);
-      this._orders.pushOrder(record, this._brand.supabase);
       return record;
     }
   }
