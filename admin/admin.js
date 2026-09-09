@@ -280,7 +280,8 @@ function confirmarCobroConTurno(){
 }
 
 /* Impresion */
-var PRINT_HOST = window.location.hostname;
+/* El panel publicado en HTTPS debe hablar con el receptor instalado en esta PC. */
+var PRINT_HOST = window.location.protocol === "https:" ? "127.0.0.1" : window.location.hostname;
 
 function printTicket(o,mode){
   var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}");
