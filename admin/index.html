@@ -13,16 +13,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=header-contrast-1">
+<link rel="stylesheet" href="admin.css?v=solo-online-1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-<body>
+<body class="online-only">
 
 <div class="pin-screen" id="pinScreen">
   <div class="pin-card" id="pinCard">
     <img src="../logo.png" alt="Sakura Sushi" class="pin-logo">
     <h1>Sakura Sushi</h1>
-    <p>Panel de administración</p>
+    <p>Pedidos en línea y reparto</p>
     <input type="text" id="loginUser" placeholder="Usuario" autocomplete="off" autofocus>
     <input type="password" id="loginPass" placeholder="Contraseña">
     <button class="btn btn-primary" id="loginBtn">Entrar</button>
@@ -58,13 +58,14 @@
       <img src="../logo.png" alt="Sakura Sushi" class="hd-logo">
       <div class="hd-info">
         <h1 id="hdTitle">Sakura Sushi</h1>
-        <span>Panel de pedidos</span>
+        <span>Pedidos en línea y reparto</span>
       </div>
     </div>
     <div class="hd-actions">
       <span id="printStatus" style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;font-weight:600">🖨️</span>
       <button class="btn ghost" id="printerConfigBtn" title="Configurar impresoras" onclick="abrirConfigImpresoras()">⚙ Impresoras</button>
       <button class="btn ghost" id="installAppBtn" style="display:none" title="Instalar aplicación">📲 Instalar</button>
+      <button class="btn ghost" id="corteRepartoBtn" title="Corte de reparto" onclick="abrirCorteReparto()">🧾 Corte</button>
       <button class="turno-badge" id="turnoBadge" onclick="if(window.PosTurno)PosTurno()">🔴 Abrir turno</button>
       <button class="btn ghost" id="cocinaBtn" title="Pantalla de cocina" onclick="window.open('cocina.html','_blank')">🍳 Cocina</button>
       <button class="btn ghost" id="reportesBtn" title="Reportes" onclick="document.getElementById('reportesModal').classList.remove('hidden');cargarReportes('hoy')">📊</button>
@@ -96,18 +97,18 @@
 
   <!-- TABS -->
   <nav class="tab-bar" id="tabBar">
-    <button class="tab-btn active" data-tab="restaurante" onclick="switchTab('restaurante')">🍽 En restaurante <span class="tab-badge" id="badgeRest">0</span></button>
-    <button class="tab-btn" data-tab="whatsapp" onclick="switchTab('whatsapp')">📱 WhatsApp <span class="tab-badge" id="badgeWsp">0</span></button>
+    <button class="tab-btn" data-tab="restaurante" onclick="switchTab('restaurante')">🍽 En restaurante <span class="tab-badge" id="badgeRest">0</span></button>
+    <button class="tab-btn active" data-tab="whatsapp" onclick="switchTab('whatsapp')">🛵 Pedidos online <span class="tab-badge" id="badgeWsp">0</span></button>
     <button class="tab-btn" data-tab="cobradas" onclick="switchTab('cobradas')">💰 Cobradas <span class="tab-badge" id="badgeCob">0</span></button>
   </nav>
 
   <!-- STATS -->
   <div class="stats-row" id="statsRow">
     <div class="stat-card"><span class="sc-value" id="stNuevos">0</span><span class="sc-label">Nuevos</span></div>
-    <div class="stat-card"><span class="sc-value" id="stActivos">0</span><span class="sc-label">Activos</span></div>
+    <div class="stat-card"><span class="sc-value" id="stActivos">0</span><span class="sc-label">En preparación</span></div>
     <div class="stat-card accent" style="border-left:4px solid var(--red)"><span class="sc-value" id="stPendientes" style="color:var(--red)">0</span><span class="sc-label">Pendientes cobro</span></div>
-    <div class="stat-card"><span class="sc-value" id="stHoy">0</span><span class="sc-label">Hoy</span></div>
-    <div class="stat-card"><span class="sc-value" id="stIngresos">$0</span><span class="sc-label">Ingresos hoy</span><span class="sc-sub" id="stTicketProm">--</span></div>
+    <div class="stat-card"><span class="sc-value" id="stHoy">0</span><span class="sc-label">Cobrados hoy</span></div>
+    <div class="stat-card"><span class="sc-value" id="stIngresos">$0</span><span class="sc-label">Venta cobrada</span><span class="sc-sub" id="stTicketProm">--</span></div>
   </div>
 
   <!-- CONTENT -->
@@ -200,15 +201,22 @@
       <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:8px;text-transform:uppercase;font-weight:700;letter-spacing:.5px">Método de pago</label>
       <div class="pay-methods" id="payMethods">
         <button class="pay-btn" data-m="efectivo">💵<span>Efectivo</span></button>
-        <button class="pay-btn" data-m="tarjeta">💳<span>Tarjeta</span></button>
         <button class="pay-btn" data-m="transferencia">🏦<span>Transf.</span></button>
-        <button class="pay-btn" data-m="online">🌐<span>Online</span></button>
-        <button class="pay-btn" data-m="didi">🛵<span>DIDI</span></button>
-        <button class="pay-btn" data-m="uber">🚗<span>Uber</span></button>
-        <button class="pay-btn" data-m="rappi">📦<span>Rappi</span></button>
       </div>
       <div id="cobroFields" style="margin-top:14px"></div>
       <button class="btn btn-green" id="confirmCobroBtn" style="width:100%;margin-top:14px;padding:13px;font-size:14px;font-weight:800" onclick="confirmarCobro()">💵 Confirmar cobro</button>
+    </div>
+  </div>
+</div>
+
+<!-- Corte simplificado de pedidos a domicilio -->
+<div class="modal hidden" id="corteRepartoModal">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-head"><h2>🧾 Corte de reparto</h2><button class="btn ghost" onclick="document.getElementById('corteRepartoModal').classList.add('hidden')">✕</button></div>
+    <div class="modal-body">
+      <div class="frow"><label>Fecha</label><input type="date" id="corteRepartoFecha" onchange="renderCorteReparto()"></div>
+      <div id="corteRepartoContenido"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="imprimirCorteReparto()">🖨 Imprimir corte</button>
     </div>
   </div>
 </div>
@@ -507,7 +515,7 @@ if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)){var tip=document.getEl
 </script>
 <script src="../js/services/menu-options-service.js?v=2"></script>
 <script src="menu-config.js?v=business-hours-1"></script>
-<script src="admin.js?v=product-images-1"></script>
+<script src="admin.js?v=solo-online-1"></script>
 <script src="package-manager.js?v=pos29"></script>
 </body>
 </html>

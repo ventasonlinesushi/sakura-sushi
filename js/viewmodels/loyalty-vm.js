@@ -19,6 +19,15 @@
       return this.line();
     }
 
+    syncFromServer(loyalty) {
+      if (!loyalty) return;
+      this.cycle = this._service.sync(loyalty.cycle);
+    }
+
+    registeredLine(loyalty) {
+      return this._service.registeredLine(loyalty);
+    }
+
     line() {
       return this._service.line(this.cycle);
     }

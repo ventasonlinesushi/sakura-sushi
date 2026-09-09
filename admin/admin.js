@@ -11,7 +11,7 @@ var esc = function(s){return String(s||"").replace(/[&<>"']/g,function(c){return
 var fmtTime = function(iso){if(!iso)return"";var d=new Date(iso);return d.toLocaleDateString("es-MX",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});};
 var fmtHora = function(d){return d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});};
 
-var state = { orders:[], seen:new Set(), soundOn:true, onlyNew:false, showArch:false, activeTab:"restaurante", pollTimer:null, pCat:0, selectedOrderId:null, newOnlineCount:0, cobradaFilter:"todas" };
+var state = { orders:[], seen:new Set(), soundOn:true, onlyNew:false, showArch:false, activeTab:"whatsapp", pollTimer:null, pCat:0, selectedOrderId:null, newOnlineCount:0, cobradaFilter:"hoy" };
 var newOrder = null, cancelMode = {}, cobroState = {method:"efectivo",order:null};
 var STATUS = { nuevo:{label:"Nuevo",cls:"ob-nuevo"}, recibido:{label:"Recibido",cls:"ob-recibido"}, listo:{label:"Listo",cls:"ob-listo"}, entregado:{label:"Entregado",cls:"ob-entregado"}, cobrado:{label:"Cobrado",cls:"ob-cobrado"}, cancelado:{label:"Cancelado",cls:"ob-cancelado"}, archivado:{label:"Archivado",cls:"ob-cobrado"} };
 var FLOW = ["nuevo","recibido","listo","entregado"];
@@ -79,33 +79,10 @@ function apiPost(data){
   });
 }
 function fetchOrders(){
-  var url = "https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders?select=*&marca=eq." + (BRAND.marca||"sakura") + "&order=created_at.desc&limit=200";
-  return new Promise(function(resolve,reject){
-    var xhr=new XMLHttpRequest();
-    xhr.open("GET",url,true);
-    xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
-    xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
-    xhr.timeout=8000;
-    xhr.onload=function(){if(xhr.status===200){resolve(JSON.parse(xhr.responseText))}else{reject(new Error("HTTP "+xhr.status))}};
-    xhr.onerror=function(){reject(new Error("Red"))};
-    xhr.ontimeout=function(){reject(new Error("Timeout"))};
-    xhr.send();
-  });
+  return posFunction("pos-orders",{action:"list",limit:2000});
 }
 function patchOrder(id,data){
-  return new Promise(function(resolve,reject){
-    var xhr=new XMLHttpRequest();
-    xhr.open("PATCH","https://edquyomwiiaawqslsisd.supabase.co/rest/v1/orders?id=eq."+encodeURIComponent(id)+"&marca=eq."+encodeURIComponent(BRAND.marca||"sakura"),true);
-    xhr.setRequestHeader("Content-Type","application/json");
-    xhr.setRequestHeader("Prefer","return=minimal");
-    xhr.setRequestHeader("apikey","sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
-    xhr.setRequestHeader("Authorization","Bearer sb_publishable_aIIwHt4T8cDIeZjy48hRxQ_sdY7_QIf");
-    xhr.timeout=8000;
-    xhr.onload=function(){if(xhr.status>=200&&xhr.status<300){resolve()}else{reject(new Error("HTTP "+xhr.status))}};
-    xhr.onerror=function(){reject(new Error("Red"))};
-    xhr.ontimeout=function(){reject(new Error("Timeout"))};
-    xhr.send(JSON.stringify(data));
-  });
+  return posFunction("pos-orders",{action:"update",id:id,changes:data});
 }
 function saveApi(data){
   return new Promise(function(resolve,reject){
@@ -123,11 +100,20 @@ function saveApi(data){
   });
 }
 
+function posFunction(slug,body,idempotencyKey){
+  var raw=localStorage.getItem(SESSION),session=raw?JSON.parse(raw):{};
+  var requestKey=idempotencyKey||(window.crypto&&crypto.randomUUID?crypto.randomUUID():("req-"+Date.now()+"-"+Math.random().toString(16).slice(2)));
+  return fetch(SUPABASE_URL+"/functions/v1/"+slug,{method:"POST",headers:{
+    "Content-Type":"application/json","apikey":SUPABASE_KEY,"x-pos-token":session.pos_token||"",
+    "x-idempotency-key":requestKey
+  },body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return{}}).then(function(data){if(!r.ok)throw new Error(data.error||("HTTP "+r.status));return data.data})});
+}
+
 /* Filtros */
 function ordersForTab(tab){
-  var l=state.orders;
+  var l=state.orders.filter(function(o){return o.order_type==="domicilio"});
   if(tab==="restaurante")l=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.order_type==="restaurante"});
-  else if(tab==="whatsapp")l=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.order_type!=="restaurante"});
+  else if(tab==="whatsapp")l=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"});
   else if(tab==="cobradas"){
     l=l.filter(function(o){return o.status==="cobrado"});
     if(state.cobradaFilter==="hoy"){
@@ -149,7 +135,7 @@ function ordersForTab(tab){
     }
   }
   if(state.onlyNew)l=l.filter(function(o){return o.status==="nuevo"});
-  if(state.showArch){var a=state.orders.filter(function(o){return o.status==="archivado"||o.status==="cancelado"});l=l.concat(a)}
+  if(state.showArch){var a=state.orders.filter(function(o){return o.order_type==="domicilio"&&(o.status==="archivado"||o.status==="cancelado")});l=l.concat(a)}
   return l;
 }
 
@@ -169,7 +155,7 @@ function cardHtml(o){
 function renderCards(){
   var list=ordersForTab(state.activeTab), grid=$("orders");
   if(!grid) return;
-  if(!list.length){var m={restaurante:"No hay pedidos en restaurante",whatsapp:"No hay pedidos de WhatsApp",cobradas:"No hay cuentas cobradas"};grid.innerHTML='<div class="empty-state"><span class="es-icon">'+(state.activeTab==="restaurante"?"🍽":state.activeTab==="whatsapp"?"📱":"💰")+'</span><span class="es-text">'+m[state.activeTab]+'</span><span class="es-sub" style="font-size:10px;color:var(--muted)">Tab: '+state.activeTab+' | Total en memoria: '+state.orders.length+'</span></div>';return}
+  if(!list.length){var m={restaurante:"No hay pedidos en restaurante",whatsapp:"No hay pedidos en línea pendientes",cobradas:"No hay pedidos cobrados"};grid.innerHTML='<div class="empty-state"><span class="es-icon">'+(state.activeTab==="whatsapp"?"🛵":"💰")+'</span><span class="es-text">'+m[state.activeTab]+'</span><span class="es-sub">La pantalla se actualiza automáticamente</span></div>';return}
   try {
     grid.innerHTML=list.map(cardHtml).join("");
     /* Wire cards */
@@ -182,18 +168,18 @@ function renderCards(){
 
 /* Stats */
 function renderStats(){
-  var l=ordersForTab(state.activeTab), today=new Date().toDateString();
-  var ta=state.orders.filter(function(o){return o.status==="cobrado"&&o.created_at&&new Date(o.created_at).toDateString()===today});
+  var online=state.orders.filter(function(o){return o.order_type==="domicilio"}),l=ordersForTab(state.activeTab), today=new Date().toDateString();
+  var ta=online.filter(function(o){return o.status==="cobrado"&&fechaCobro(o).toDateString()===today});
   var ti=ta.reduce(function(a,o){return a+(o.total||0)},0);
   $("stNuevos").textContent=l.filter(function(o){return o.status==="nuevo"}).length;
   $("stActivos").textContent=l.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.status!=="entregado"}).length;
-  var pendientes = state.orders.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.payment!=="Pagado Online"}).length;
+  var pendientes = online.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;
   $("stPendientes").textContent = pendientes;
   $("stHoy").textContent=ta.length;$("stIngresos").textContent=money(ti);
   $("stTicketProm").textContent=ta.length?"Ticket prom. "+money(Math.round(ti/ta.length)):"--";
-  var r=state.orders.filter(function(o){return o.order_type==="restaurante"&&o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;
-  var w=state.orders.filter(function(o){return o.order_type!=="restaurante"&&o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;
-  var c=state.orders.filter(function(o){return o.status==="cobrado"}).length;
+  var r=0;
+  var w=online.filter(function(o){return o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"}).length;
+  var c=online.filter(function(o){return o.status==="cobrado"}).length;
   $("badgeRest").textContent=r;$("badgeWsp").textContent=w;$("badgeCob").textContent=c;
 }
 
@@ -206,20 +192,17 @@ function renderSidePanel(){
   var de=JSON.parse(localStorage.getItem("orderExtra_"+id)||"{}"),disc=de.d||0,extra=de.e||0,idsc=de.items||{},mode=de.mode||"general";
   $("spFolio").textContent="#"+o.folio;$("spBadge").textContent=s.label;$("spBadge").className="sp-badge "+s.cls;
   $("spClient").innerHTML=esc(o.name||"Cliente")+' <button class="sp-btn-slim" onclick="PosEditName(\''+id+'\')">E</button>';
-  var flows=FLOW.filter(function(st){return st!==o.status}).map(function(st){var sd=STATUS[st];return'<button class="sp-btn" onclick="PosChangeStatus(\''+id+'\',\''+st+'\')">'+sd.label+'</button>';}).join("");
   var acc = '';
   if(isCobrado){
-    acc += '<button class="sp-btn sp-btn-primary" onclick="PosReabrir(\''+id+'\')">Reabrir</button>';
-    acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">Reimprimir</button>';
+    acc += '<button class="sp-btn sp-btn-primary" onclick="PosReimprimir(\''+id+'\')">🧾 Reimprimir</button>';
   } else {
-    if(canDo("cobrar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosCobrar(\''+id+'\')">Cobrar</button>';
-    if(canDo("dividir")) acc += '<button class="sp-btn" onclick="PosDividir(\''+id+'\')">✂️ Dividir</button>';
-    if(canDo("editar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosAgregarPlatillos(\''+id+'\')">➕ Agregar platillos</button><button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Datos cuenta</button>';
-    if(canDo("comandar")) acc += '<button class="sp-btn" onclick="PosComandar(\''+id+'\')">🖨 Comandar</button>';
-    if(canDo("imprimir")) acc += '<button class="sp-btn" onclick="PosReimprimir(\''+id+'\')">🧾 Imprimir cuenta</button>';
-    if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelFinish(\''+id+'\')">Finalizar e imprimir ('+((cancelMode[id].removed||[]).length)+')</button><button class="sp-btn" onclick="PosCancelModeOff(\''+id+'\')">Deshacer y salir</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
-    if(canDo("cambiarEstado")) acc += flows;
-    if(canDo("archivar")) acc += '<button class="sp-btn" onclick="PosArchivar(\''+id+'\')">Archivar</button>';
+    if(o.status==="nuevo") acc += '<button class="sp-btn sp-btn-primary" onclick="PosChangeStatus(\''+id+'\',\'recibido\')">👨‍🍳 Aceptar y preparar</button>';
+    if(o.status==="recibido") acc += '<button class="sp-btn sp-btn-primary" onclick="PosChangeStatus(\''+id+'\',\'listo\')">✅ Marcar listo</button>';
+    if(o.status==="listo") acc += '<button class="sp-btn sp-btn-primary" onclick="PosChangeStatus(\''+id+'\',\'entregado\')">🛵 Salió a reparto</button>';
+    if(o.status==="entregado"&&canDo("cobrar")) acc += '<button class="sp-btn sp-btn-primary" onclick="PosCobrar(\''+id+'\')">💵 Cobrar pedido</button>';
+    if(canDo("comandar")) acc += '<button class="sp-btn" onclick="PosComandar(\''+id+'\')">🖨 Reimprimir cocina</button>';
+    if(canDo("editar")) acc += '<button class="sp-btn" onclick="PosEditar(\''+id+'\')">✏️ Corregir datos</button>';
+    if(canDo("cancelar")) acc += isCancel?'<button class="sp-btn sp-btn-warn" onclick="PosCancelFinish(\''+id+'\')">Confirmar cancelación</button><button class="sp-btn" onclick="PosCancelModeOff(\''+id+'\')">Deshacer</button>':'<button class="sp-btn sp-btn-warn" onclick="PosCancelModeOn(\''+id+'\')">Cancelar productos</button>';
   }
   $("spActions").innerHTML=acc;
   var spInputs=canDo("descuentos")?'<label>Descuento</label><div class="seg" style="margin-bottom:8px"><button class="seg-btn'+(mode==="general"?" on":"")+'" onclick="PosDiscMode(\''+id+'\',\'general\')">General</button><button class="seg-btn'+(mode==="producto"?" on":"")+'" onclick="PosDiscMode(\''+id+'\',\'producto\')">A producto</button></div>':'';
@@ -243,7 +226,7 @@ function switchTab(tab){state.activeTab=tab;state.selectedOrderId=null;$("sidePa
 function render(){renderCards();renderSidePanel();renderStats();}
 
 function abrirCobro(o){
-  cobroState.order=o;cobroState.method="efectivo";
+  cobroState.order=o;cobroState.method=String(o.payment||"").toLowerCase().indexOf("transf")>=0?"transferencia":"efectivo";
   var de=JSON.parse(localStorage.getItem("orderExtra_"+o.id)||"{}"),disc=de.d||0,extra=de.e||0,idsc=de.items||{};
   var sb=(o.items||[]).reduce(function(a,i){return a+(i.price||0)*(i.qty||0)},0),dp=0;
   var sd=(o.items||[]).reduce(function(a,i,ix){var p=(i.price||0)*(i.qty||0),idc=idsc[String(ix)]||{},t=idc.t||"%",v=idc.v||0,d=0;if(t==="%")d=Math.round(p*v/100);else d=Math.min(p,v);dp+=d;return a+p-d;},0);
@@ -251,7 +234,7 @@ function abrirCobro(o){
   $("cobroInfo").innerHTML='<div class="cobro-total">'+money(tf)+'</div>'+(dp>0?'<div style="font-size:11px;color:var(--red)">Desc. prod: -'+money(dp)+'</div>':'')+(disc>0?'<div style="font-size:11px;color:var(--red)">Desc. gral '+disc+'%: -'+money(Math.round(sd*disc/100))+'</div>':'')+(extra>0?'<div style="font-size:11px;color:var(--green)">Cargo: +'+money(extra)+'</div>':'')+'<div style="font-size:12px;color:var(--muted);margin-top:4px">Pedido #'+esc(o.folio)+' '+esc(o.name)+'</div>';
   $("cobroModal").classList.remove("hidden");
   document.querySelectorAll(".pay-btn").forEach(function(x){x.classList.remove("on")});
-  var db=document.querySelector('.pay-btn[data-m="efectivo"]');if(db)db.classList.add("on");
+  var db=document.querySelector('.pay-btn[data-m="'+cobroState.method+'"]');if(db)db.classList.add("on");
   cobroFields();
 }
 function cobroFields(){
@@ -278,7 +261,7 @@ window.updateCambio=function(){
   var el=document.getElementById("cobroCambio");if(el)el.textContent=cambio>=0?"Cambio: "+money(cambio):"Faltan: "+money(-cambio);
 };
 function confirmarCobro(){
-  validarTurnoParaCobro(function(){confirmarCobroConTurno()});
+  confirmarCobroConTurno();
 }
 function confirmarCobroConTurno(){
   var o=cobroState.order;if(!o)return;var m=cobroState.method;
@@ -289,7 +272,8 @@ function confirmarCobroConTurno(){
   if(m==="online"){ det="Pago recibido por Internet"; }
   var sesionCobro=JSON.parse(localStorage.getItem(SESSION)||"{}"),usuarioCobro=sesionCobro.nombre||sesionCobro.username||"Usuario";
   var nota=(o.notes||"");if(nota)nota+=" | ";nota+="PAGO:"+ml+" | "+det+" | PAGO_POR:"+usuarioCobro+" | PAGO_EN:"+new Date().toISOString();
-  patchOrder(o.id,{payment:ml,notes:nota,total:total,status:"cobrado"}).then(function(){
+  var key="cobro-online-"+o.id+"-"+Date.now();
+  posFunction("pos-cash",{action:"charge",id:o.id,payment:ml,total:total,tip:prop,notes:nota},key).then(function(){
     $("cobroModal").classList.add("hidden");state.selectedOrderId=null;$("sidePanel").classList.add("hidden");
     toast("Cuenta #"+o.folio+" cobrada correctamente");refresh();
   }).catch(function(err){toast("No se pudo registrar el cobro: "+err.message)});
@@ -368,16 +352,11 @@ function saveNewOrder(){
 
 /* Side Panel Actions */
 function validarTurnoParaCobro(done){
-  checkTurno().then(function(turno){
-    state.turno=turno||null;
-    var badge=$("turnoBadge");if(badge)badge.textContent=turno?"🟢 Caja abierta":"🔴 Abrir caja";
-    if(!turno){$("cobroModal")&&$("cobroModal").classList.add("hidden");toast("No se puede cobrar: primero abre un turno de caja");return}
-    done(turno);
-  }).catch(function(){toast("No se pudo verificar la caja. El cobro fue bloqueado")});
+  done(null);
 }
-function PosCobrar(id){var o=state.orders.find(function(x){return x.id===id});if(o)validarTurnoParaCobro(function(){abrirCobro(o)});}
-function PosEditar(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var tipo=o.order_type||"llevar";var h='<div class="frow"><label>Folio</label><input value="'+esc(o.folio||"")+'" disabled></div>';h+='<div class="frow"><label>Nombre</label><input type="text" id="edName" value="'+esc(o.name||"")+'"></div>';h+='<div class="frow"><label>Telefono</label><input type="text" id="edPhone" value="'+esc(o.phone||"")+'"></div>';h+='<div class="frow"><label>Tipo</label><select id="edType"><option value="llevar"'+(tipo=="llevar"?" selected":"")+'>Para llevar</option><option value="domicilio"'+(tipo=="domicilio"?" selected":"")+'>A domicilio</option><option value="restaurante"'+(tipo=="restaurante"?" selected":"")+'>Restaurante</option></select></div>';h+='<div class="frow"><label>Direccion</label><input type="text" id="edAddr" value="'+esc(o.address||"")+'"></div>';h+='<div class="frow"><label>Pago</label><select id="edPay"><option value="Efectivo"'+(o.payment=="Efectivo"?" selected":"")+'>Efectivo</option><option value="Tarjeta"'+(o.payment=="Tarjeta"?" selected":"")+'>Tarjeta</option><option value="Transferencia"'+(o.payment=="Transferencia"?" selected":"")+'>Transferencia</option></select></div>';h+='<div class="frow"><label>Notas</label><input type="text" id="edNotes" value="'+esc(o.notes||"")+'"></div>';h+='<div class="frow"><label>Salsas</label><input type="text" id="edSalsas" value="'+esc(o.salsas||"")+'"></div>';$("edBody").innerHTML=h;$("editModal").classList.remove("hidden");$("editModal").dataset.oid=id;}
-function PosEditSave(){var id=$("editModal").dataset.oid;if(!id)return;var data={};var n=($("edName").value||"").trim();if(n)data.name=n;data.phone=($("edPhone").value||"").trim();data.order_type=$("edType").value;data.address=($("edAddr").value||"").trim();data.payment=$("edPay").value;data.notes=($("edNotes").value||"").trim();data.salsas=($("edSalsas").value||"").trim();patchOrder(id,data).then(function(){$("editModal").classList.add("hidden");toast("Pedido actualizado");refresh();}).catch(function(e){toast("Error: "+e.message);});}
+function PosCobrar(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;if(o.status!=="entregado"){toast("Primero marca que el pedido salió a reparto");return}abrirCobro(o);}
+function PosEditar(id){var o=state.orders.find(function(x){return x.id===id});if(!o)return;var h='<div class="frow"><label>Folio</label><input value="'+esc(o.folio||"")+'" disabled></div>';h+='<div class="frow"><label>Nombre</label><input type="text" id="edName" value="'+esc(o.name||"")+'"></div>';h+='<div class="frow"><label>Teléfono</label><input type="text" id="edPhone" value="'+esc(o.phone||"")+'"></div>';h+='<div class="frow"><label>Dirección de entrega</label><input type="text" id="edAddr" value="'+esc(o.address||"")+'"></div>';h+='<div class="frow"><label>Pago</label><select id="edPay"><option value="Efectivo"'+(o.payment==="Efectivo"?" selected":"")+'>Efectivo</option><option value="Transferencia"'+(o.payment==="Transferencia"?" selected":"")+'>Transferencia</option></select></div>';h+='<div class="frow"><label>Notas</label><input type="text" id="edNotes" value="'+esc(o.notes||"")+'"></div>';h+='<div class="frow"><label>Salsas</label><input type="text" id="edSalsas" value="'+esc(o.salsas||"")+'"></div>';$("edBody").innerHTML=h;$("editModal").classList.remove("hidden");$("editModal").dataset.oid=id;}
+function PosEditSave(){var id=$("editModal").dataset.oid;if(!id)return;var data={order_type:"domicilio"};var n=($("edName").value||"").trim();if(n)data.name=n;data.phone=($("edPhone").value||"").trim();data.address=($("edAddr").value||"").trim();data.payment=$("edPay").value;data.notes=($("edNotes").value||"").trim();data.salsas=($("edSalsas").value||"").trim();patchOrder(id,data).then(function(){$("editModal").classList.add("hidden");toast("Pedido actualizado");refresh();}).catch(function(e){toast("Error: "+e.message);});}
 var splitState = {order:null, asignaciones:{}};
 function PosDividir(id){
   var o = state.orders.find(function(x){return x.id===id});
@@ -504,7 +483,7 @@ function refresh(){
     var newOnline = 0;
     try {
       orders.forEach(function(o){
-        if(!isFirst && !state.seen.has("notif_"+o.id) && o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&(o.order_type==="domicilio"||o.order_type==="llevar")){
+        if(!isFirst && !state.seen.has("notif_"+o.id) && o.status!=="cobrado"&&o.status!=="archivado"&&o.status!=="cancelado"&&o.order_type==="domicilio"){
           state.seen.add("notif_"+o.id);
           newOnline++;
         }
@@ -543,6 +522,7 @@ function initApp(){
   var raw=localStorage.getItem(SESSION);if(!raw)return;
   try{var user=JSON.parse(raw);if(!user||!user.username)return}catch(e){return}
   currentUser = user;
+  document.body.classList.add("online-only");
   document.body.classList.toggle("role-mesero",user.rol==="mesero");
   document.body.classList.toggle("role-cocina",user.rol==="cocina");
   document.title = user.nombre + " - " + BRAND.business;
@@ -552,7 +532,7 @@ function initApp(){
   var av = $("userAvatar"); if(av) av.textContent = (user.nombre||"U").charAt(0).toUpperCase();
   var nm = $("hdUserName2"); if(nm) nm.textContent = user.nombre;
   var rl = $("hdUserRol2"); if(rl) rl.textContent = user.rol;
-  if(isAdmin()){$("usersBtn").style.display="";$("productsBtn").style.display=""}
+  if(isAdmin()){$("usersBtn").style.display="none";$("productsBtn").style.display="none"}
   // Ocultar acciones segun rol
   if(!canDo("usuarios")){$("usersBtn").style.display="none"}
   if(!canDo("productos")){$("productsBtn").style.display="none"}
@@ -598,8 +578,7 @@ function initApp(){
   var fc=$("filtroCobradas");if(fc){fc.addEventListener("click",function(e){var b=e.target.closest("[data-cf]");if(!b)return;if(b.dataset.cf==="personalizado"){var ff=$("filtroFechas");if(ff)ff.style.display=ff.style.display==="none"?"flex":"none";state.cobradaFilter="personalizado";aplicarFiltroFecha();return}var ff=$("filtroFechas");if(ff)ff.style.display="none";state.cobradaFilter=b.dataset.cf;fc.querySelectorAll("button").forEach(function(x){x.style.background=x.dataset.cf===b.dataset.cf?"var(--primary)":"#fff";x.style.color=x.dataset.cf===b.dataset.cf?"#fff":"inherit";x.style.fontWeight=x.dataset.cf===b.dataset.cf?"800":"600";x.style.border=x.dataset.cf===b.dataset.cf?"none":"1px solid var(--border)"});renderCards();});}
 function aplicarFiltroFecha(){state.cobradaFilter="personalizado";renderCards();}
   var g0 = $("orders"); if(g0) g0.innerHTML = '<div class="empty-state"><span class="es-text">Iniciando carga de pedidos...</span><span class="es-sub">Conectando a Supabase</span></div>';
-  refresh();start();switchTab("restaurante");
-  initTurnoBadge();
+  refresh();start();switchTab("whatsapp");
 }
 
 /* ============================================================
@@ -901,9 +880,41 @@ function checkTurno(){
   });
 }
 function fechaCobro(o){
+  if(o.paid_at){var paid=new Date(o.paid_at);if(!isNaN(paid.getTime()))return paid;}
   var m=(o.notes||"").match(/(?:^|\s\|\s)PAGO_EN:([^|]+)/g);
   if(m&&m.length){var v=m[m.length-1].replace(/^.*PAGO_EN:/,"").trim();var d=new Date(v);if(!isNaN(d.getTime()))return d;}
   return new Date(o.created_at);
+}
+
+var corteRepartoActual=null;
+function fechaLocalInput(d){var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+day;}
+function datosCorteReparto(orders,value){
+  var inicio=new Date(value+"T00:00:00"),fin=new Date(value+"T23:59:59.999");
+  var domicilio=(orders||[]).filter(function(o){return o.order_type==="domicilio"});
+  var cobrados=domicilio.filter(function(o){var d=fechaCobro(o);return o.status==="cobrado"&&d>=inicio&&d<=fin});
+  var pendientes=domicilio.filter(function(o){var d=new Date(o.created_at);return !["cobrado","cancelado","archivado"].includes(o.status)&&d>=inicio&&d<=fin});
+  var efectivo=cobrados.filter(function(o){return String(o.payment||"").toLowerCase().includes("efect")}).reduce(function(a,o){return a+Number(o.total||0)},0);
+  var transferencia=cobrados.filter(function(o){return String(o.payment||"").toLowerCase().includes("transf")}).reduce(function(a,o){return a+Number(o.total||0)},0);
+  var otros=cobrados.reduce(function(a,o){var p=String(o.payment||"").toLowerCase();return p.includes("efect")||p.includes("transf")?a:a+Number(o.total||0)},0);
+  return {fecha:value,cobrados:cobrados,pendientes:pendientes,efectivo:efectivo,transferencia:transferencia,otros:otros,total:efectivo+transferencia+otros,pendienteTotal:pendientes.reduce(function(a,o){return a+Number(o.total||0)},0)};
+}
+function abrirCorteReparto(){
+  var f=$("corteRepartoFecha");if(!f.value)f.value=fechaLocalInput(new Date());
+  $("corteRepartoModal").classList.remove("hidden");renderCorteReparto();
+}
+function renderCorteReparto(){
+  var body=$("corteRepartoContenido"),value=$("corteRepartoFecha").value||fechaLocalInput(new Date());
+  body.innerHTML='<div class="empty">Calculando pedidos cobrados...</div>';
+  posFunction("pos-orders",{action:"list",limit:2000}).then(function(rows){
+    var d=datosCorteReparto(rows,value);corteRepartoActual=d;
+    body.innerHTML='<div class="corte-online-total"><small>VENTA COBRADA</small><strong>'+money(d.total)+'</strong><span>'+d.cobrados.length+' pedidos</span></div>'+
+      '<div class="corte-box"><div class="corte-row"><span>💵 Efectivo</span><b>'+money(d.efectivo)+'</b></div><div class="corte-row"><span>🏦 Transferencia</span><b>'+money(d.transferencia)+'</b></div>'+(d.otros?'<div class="corte-row"><span>Otros</span><b>'+money(d.otros)+'</b></div>':'')+'<div class="corte-sep"></div><div class="corte-row c-bold"><span>Total cobrado</span><b>'+money(d.total)+'</b></div></div>'+
+      '<div class="corte-pendiente"><span>Pedidos pendientes de cobro</span><b>'+d.pendientes.length+' · '+money(d.pendienteTotal)+'</b></div>';
+  }).catch(function(){body.innerHTML='<div class="empty" style="color:var(--red)">No se pudo calcular el corte. Revisa Internet.</div>'});
+}
+function imprimirCorteReparto(){
+  var d=corteRepartoActual;if(!d){toast("Espera a que termine el cálculo");return}
+  imprimirCorte({tipo:"CORTE DE REPARTO",marca:BRAND.marca||"sakura",negocio:BRAND.business||"Sakura Sushi",fecha:new Date().toISOString(),fecha_corte:d.fecha,pedidos:d.cobrados.length,ventas:{efectivo:d.efectivo,transferencia:d.transferencia,otros:d.otros,total:d.total},pendientes:{pedidos:d.pendientes.length,total:d.pendienteTotal},movimientos:[]});
 }
 var installPromptEvent=null;
 window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();installPromptEvent=e;var b=$("installAppBtn");if(b)b.style.display=""});

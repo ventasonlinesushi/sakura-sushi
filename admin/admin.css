@@ -708,6 +708,26 @@ body.role-mesero #newOrderModal .modal-foot{position:sticky;bottom:0;z-index:4}
 .mc-section{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}.mc-section h3{margin:0 0 10px}.mc-section p{font-size:11px;color:var(--muted)}
 .mc-section input,.mc-section textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:9px;margin:4px 0;background:#fff}.mc-section textarea{min-height:100px;resize:vertical}.mc-add{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.mc-chip{display:inline-block;padding:6px 9px;margin:3px;border-radius:8px;background:var(--primary-light);color:var(--primary);font-size:11px;font-weight:800}.mc-row{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:1px solid var(--border);padding:10px 0}.mc-row span{display:flex;flex-direction:column}.mc-row small{color:var(--muted);margin-top:3px}
 @media(max-width:620px){.mc-add{grid-template-columns:1fr}.mc-row{align-items:flex-start}.menu-config-card{max-height:96vh}}
+
+/* Modo dedicado a pedidos en línea y reparto */
+body.online-only #turnoBadge,
+body.online-only #reportesBtn,
+body.online-only #gastosBtn,
+body.online-only #crmBtn,
+body.online-only #usersBtn,
+body.online-only #productsBtn,
+body.online-only #invAlert,
+body.online-only #newOrderBtn,
+body.online-only .tab-btn[data-tab="restaurante"],
+body.online-only .sp-inputs{display:none!important}
+body.online-only .tab-bar::before{content:'DOMICILIO'}
+body.online-only .pay-methods{grid-template-columns:repeat(2,1fr)}
+.corte-online-total{display:flex;flex-direction:column;align-items:center;margin:10px 0 16px;padding:20px;border-radius:16px;background:linear-gradient(135deg,#171a24,#2b3140);color:#fff}
+.corte-online-total small{font-size:10px;font-weight:800;letter-spacing:1px;color:#b9c0cf}
+.corte-online-total strong{font-size:38px;line-height:1.15;margin:5px 0}
+.corte-online-total span{font-size:12px;color:#dfe3eb}
+.corte-pendiente{display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding:13px 14px;border-radius:11px;background:#fff7ed;color:#9a4f08;font-size:12px;font-weight:800}
+@media(max-width:520px){body.online-only #printerConfigBtn,body.online-only #cocinaBtn{display:none!important}body.online-only #corteRepartoBtn{display:inline-flex!important}.corte-pendiente{flex-direction:column;gap:4px}}
 .sp-actions .sp-btn{color:#242936;background:#fff;border-color:#dfe3eb}
 .sp-actions .sp-btn:hover,.sp-actions .sp-btn:focus-visible{color:#9e1c52!important;background:#fff0f5!important;border-color:#e8367c!important;outline:none}
 .sp-actions .sp-btn.sp-btn-primary{color:#fff!important;background:linear-gradient(135deg,#0f9f70,#087f5b)!important;border-color:#087f5b!important}

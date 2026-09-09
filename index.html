@@ -19,7 +19,7 @@
     <img class="hero-logo" src="logo.png" alt="Sakura Sushi">
     <span class="hero-badge">🍣 Sushi · Ramen · Rollos</span>
     <h1>Sakura Sushi</h1>
-    <p class="hero-sub">Paseos Mid · Pide por WhatsApp y recoge en el restaurante</p>
+    <p class="hero-sub">Paseos Mid · Pedidos a domicilio por WhatsApp</p>
     <div class="business-status" id="businessStatus" aria-live="polite">Consultando horario…</div>
     <div class="hero-actions">
       <a class="hero-phone" href="tel:+529993614410">📞 999 361 4410</a>
@@ -80,14 +80,14 @@
     <input type="tel" id="fPhone" placeholder="Ej. 999 123 4567">
   </div>
   <div class="field">
-    <label>¿Cómo lo quieres?</label>
+    <label>Tipo de pedido</label>
     <div class="seg">
-      <div class="opt active" id="optLlevar" onclick="setType('llevar')">🛍️ Para llevar</div>
-      <div class="opt" id="optDomicilio" onclick="setType('domicilio')">🛵 A domicilio</div>
+      <div class="opt hidden" id="optLlevar">🛍️ Para llevar</div>
+      <div class="opt active" id="optDomicilio">🛵 A domicilio</div>
     </div>
-    <div class="delivery-note hidden" id="deliveryNote">🛵 Los pedidos a domicilio tienen un <b>costo extra por envío</b> según tu ubicación. Al enviar, <b>adjunta tu ubicación</b> en WhatsApp.</div>
+    <div class="delivery-note" id="deliveryNote">🛵 El envío tiene un <b>costo extra según tu ubicación</b>. Al enviar el pedido, <b>adjunta tu ubicación</b> en WhatsApp.</div>
   </div>
-  <div id="fieldAddress" class="hidden">
+  <div id="fieldAddress">
     <div class="field">
       <label>Calle *</label>
       <input type="text" id="fCalle" placeholder="Ej. Av. Prolongación Montejo">
@@ -155,17 +155,17 @@
 <script src="js/services/catalog-service.js"></script>
 <script src="js/services/menu-options-service.js?v=2"></script>
 <script src="js/services/cart-service.js?v=package-groups-1"></script>
-<script src="js/services/loyalty-service.js"></script>
+<script src="js/services/loyalty-service.js?v=visitas-nube-1"></script>
 <script src="js/services/order-service.js?v=pedidos-seguros-1"></script>
 <script src="js/services/checkout-service.js"></script>
 <script src="js/viewmodels/catalog-vm.js"></script>
 <script src="js/viewmodels/cart-vm.js"></script>
-<script src="js/viewmodels/loyalty-vm.js"></script>
-<script src="js/viewmodels/checkout-vm.js?v=pedidos-seguros-1"></script>
+<script src="js/viewmodels/loyalty-vm.js?v=visitas-nube-1"></script>
+<script src="js/viewmodels/checkout-vm.js?v=visitas-nube-1"></script>
 <script src="js/viewmodels/package-vm.js"></script>
 <script src="js/views/menu-view.js?v=product-images-1"></script>
 <script src="js/views/drawer-view.js"></script>
-<script src="js/views/checkout-view.js?v=business-hours-1"></script>
+<script src="js/views/checkout-view.js?v=solo-domicilio-1"></script>
 <script src="js/views/sheet-view.js?v=package-groups-1"></script>
 <script src="js/views/app-view.js"></script>
 <script src="js/main.js?v=business-hours-1"></script>

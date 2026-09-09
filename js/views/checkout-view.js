@@ -10,7 +10,7 @@
       this.checkout = deps.checkoutVM;
       this.loyalty = deps.loyaltyVM;
       this.currency = deps.currency;
-      this.orderType = "llevar";
+      this.orderType = "domicilio";
       this.payment = "Efectivo";
       this.palitos = "Si";
       this.e = {};
@@ -40,11 +40,11 @@
     }
 
     setType(t) {
-      this.orderType = t;
-      this.e.optLlevar.classList.toggle("active", t === "llevar");
-      this.e.optDomicilio.classList.toggle("active", t === "domicilio");
-      this.e.fieldAddress.classList.toggle("hidden", t !== "domicilio");
-      this.e.deliveryNote.classList.toggle("hidden", t !== "domicilio");
+      this.orderType = "domicilio";
+      if (this.e.optLlevar) this.e.optLlevar.classList.remove("active");
+      if (this.e.optDomicilio) this.e.optDomicilio.classList.add("active");
+      this.e.fieldAddress.classList.remove("hidden");
+      this.e.deliveryNote.classList.remove("hidden");
     }
 
     setPayment(p) {
@@ -113,9 +113,11 @@
       const popup = window.open("about:blank", "_blank");
       try {
         const record = await this.checkout.recordOrder(data, form, this.cart.items);
-        const confirmed = this.checkout.orderData(this.cart.items, this.loyalty.line(), form, record.folio);
+        if (record.loyalty) this.loyalty.syncFromServer(record.loyalty);
+        const loyaltyLine = record.loyalty ? this.loyalty.registeredLine(record.loyalty) : this.loyalty.line();
+        const confirmed = this.checkout.orderData(this.cart.items, loyaltyLine, form, record.folio);
         if (popup) popup.location.href = confirmed.url; else window.location.href = confirmed.url;
-        this.loyalty.registerVisit();
+        if (!record.loyalty) this.loyalty.registerVisit();
         this.onSent && this.onSent();
       } catch (error) {
         if (popup) popup.close();

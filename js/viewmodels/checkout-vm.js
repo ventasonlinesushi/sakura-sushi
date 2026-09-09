@@ -59,6 +59,7 @@
       if (!saved) throw new Error("No se pudo registrar el pedido en el restaurante");
       record.folio = saved.folio;
       record.id = saved.id;
+      record.loyalty = saved.loyalty || null;
       this._orderRepo.save(record);
       this._orders.notify(record, this._brand.sheetsUrl);
       return record;

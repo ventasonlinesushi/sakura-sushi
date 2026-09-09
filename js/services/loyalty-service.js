@@ -20,6 +20,25 @@
       return next;
     }
 
+    sync(cycle) {
+      const value = Number(cycle);
+      const next = Number.isFinite(value) ? Math.max(0, Math.min(7, Math.trunc(value))) : 0;
+      this._repository.save(next);
+      return next;
+    }
+
+    registeredLine(loyalty) {
+      if (!loyalty) return this.line(0);
+      const visit = Math.max(1, Math.min(8, Number(loyalty.visit_number) || 1));
+      let text = "*Tarjeta de fidelidad:* Visita #" + visit;
+      if (loyalty.reward_visit || visit === 8) {
+        text += "\n🎉 *10% OFF en esta visita* (la tarjeta se reinicia)";
+      } else {
+        text += "\nTe faltan " + (8 - visit) + " para tu 10% OFF";
+      }
+      return text;
+    }
+
     statusText(cycle) {
       if (cycle === 7) return "🎉 ¡Tu próxima visita (#8) tiene 10% OFF!";
       const missing = cycle === 0 ? 8 : 8 - cycle;

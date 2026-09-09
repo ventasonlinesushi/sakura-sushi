@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Sakura Sushi POS",
-  "short_name": "Sakura POS",
-  "description": "Pedidos y comandas de Sakura Sushi",
+  "name": "Sakura Pedidos Online",
+  "short_name": "Sakura Online",
+  "description": "Pedidos a domicilio, impresión y corte de reparto de Sakura Sushi",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
