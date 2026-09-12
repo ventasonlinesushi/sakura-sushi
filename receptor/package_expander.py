@@ -33,9 +33,18 @@ def expandir_items(items, marca="sakura"):
         cantidad = int(item.get("cantidad") or item.get("qty") or 1)
         bajo = nombre.lower()
 
-        if bajo.startswith("2 rollos x $150"):
+        if bajo.startswith("2 rollos x $150") or bajo.startswith("2 rollos x $179"):
             es_paquete = True
             salida.extend(_rollos(nombre, 2, cantidad))
+        elif bajo.startswith("paquete individual"):
+            es_paquete = True
+            elegidos = _selecciones(nombre)
+            for elegido in elegidos:
+                estacion = "barra" if elegido.lower().startswith("pay de ") else "sushi"
+                salida.append(_linea(elegido, cantidad, estacion))
+            if len(elegidos) != 2:
+                salida.append(_linea("ATENCION: FALTAN OPCIONES DEL PAQUETE", cantidad, "cocina"))
+            salida.append(_linea("1/2 Yakimeshi Vegetariano", cantidad, "cocina"))
         elif bajo.startswith("super paquete 4 rollos x $379"):
             es_paquete = True
             salida.extend(_rollos(nombre, 4, cantidad))
