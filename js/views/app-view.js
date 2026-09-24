@@ -96,6 +96,11 @@
       this.el.overlay.classList.remove("show");
     }
 
+    continueShopping() {
+      this.closeDrawer();
+      this.goBack();
+    }
+
     clearCart() {
       this.cart.clear();
     }
