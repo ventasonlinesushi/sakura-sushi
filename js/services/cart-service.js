@@ -15,7 +15,7 @@
       try {
         return (cart || []).filter(e => {
           if (!e || typeof e.key !== "string") return false;
-          const withoutAlga = e.key.split("|alga=")[0];
+          const withoutAlga = e.key.split("|")[0];
           const clean = withoutAlga.indexOf("pkg:") === 0 ? withoutAlga.slice(4) : withoutAlga;
           const parts = clean.split(":");
           const item = this._catalog.getItem(+parts[0], +parts[1]);
@@ -47,7 +47,23 @@
       } else {
         const index = result.indexOf(entry);
         result[index] = global.PosApp.CartItem.create(entry.key, entry.name, entry.price, entry.qty + delta);
+        if (entry.desc) result[index].desc = entry.desc;
         if (result[index].qty <= 0) result.splice(index, 1);
+      }
+      return result;
+    }
+
+    addCustomized(cart, key, name, price, detail) {
+      const result = cart.slice();
+      const existing = result.find(c => c.key === key);
+      if (existing) {
+        const updated = global.PosApp.CartItem.create(key, existing.name, existing.price, existing.qty + 1);
+        updated.desc = existing.desc || detail;
+        result[result.indexOf(existing)] = updated;
+      } else {
+        const created = global.PosApp.CartItem.create(key, name, price, 1);
+        created.desc = detail;
+        result.push(created);
       }
       return result;
     }
