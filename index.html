@@ -19,7 +19,7 @@
     <img class="hero-logo" src="logo.png" alt="Sakura Sushi">
     <span class="hero-badge">🍣 Sushi · Ramen · Rollos</span>
     <h1>Sakura Sushi</h1>
-    <p class="hero-sub">Paseos Mid · Pedidos a domicilio por WhatsApp</p>
+    <p class="hero-sub">Paseos Mid · A domicilio o para recoger en restaurante</p>
     <div class="business-status" id="businessStatus" aria-live="polite">Consultando horario…</div>
     <div class="hero-actions">
       <a class="hero-phone" href="tel:+529993614410">📞 999 361 4410</a>
@@ -82,8 +82,8 @@
   <div class="field">
     <label>Tipo de pedido</label>
     <div class="seg">
-      <div class="opt hidden" id="optLlevar">🛍️ Para llevar</div>
-      <div class="opt active" id="optDomicilio">🛵 A domicilio</div>
+      <div class="opt" id="optLlevar" onclick="setType('llevar')" role="button" tabindex="0">🛍️ Recoger en restaurante</div>
+      <div class="opt active" id="optDomicilio" onclick="setType('domicilio')" role="button" tabindex="0">🛵 A domicilio</div>
     </div>
     <div class="delivery-note" id="deliveryNote">🛵 El envío tiene un <b>costo extra según tu ubicación</b>. Al enviar el pedido, <b>adjunta tu ubicación</b> en WhatsApp.</div>
   </div>
@@ -165,7 +165,7 @@
 <script src="js/viewmodels/package-vm.js"></script>
 <script src="js/views/menu-view.js?v=product-images-1"></script>
 <script src="js/views/drawer-view.js"></script>
-<script src="js/views/checkout-view.js?v=solo-domicilio-1"></script>
+<script src="js/views/checkout-view.js?v=domicilio-recoger-2"></script>
 <script src="js/views/sheet-view.js?v=package-groups-1"></script>
 <script src="js/views/app-view.js"></script>
 <script src="js/main.js?v=business-hours-1"></script>
