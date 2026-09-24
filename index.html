@@ -69,17 +69,44 @@
 </div>
 
 <div class="alga-backdrop hidden" id="algaModal" role="dialog" aria-modal="true" aria-labelledby="algaTitle">
-  <div class="alga-card">
-    <div class="alga-banner">🍣 <span>SAKURA SUSHI</span></div>
+  <div class="alga-card custom-card">
+    <div class="alga-banner">🍣 <span>SAKURA SUSHI · A TU GUSTO</span></div>
     <div class="alga-content">
-      <h2 id="algaTitle">¿Cómo lo prefieres?</h2>
+      <h2 id="algaTitle">Hazlo a tu manera ✨</h2>
       <p id="algaProduct"></p>
-      <div class="alga-choices">
-        <label class="alga-option"><input type="radio" name="algaChoice" value="sin"><span class="alga-emoji">🍚</span><strong>Sin alga</strong></label>
-        <label class="alga-option"><input type="radio" name="algaChoice" value="con"><span class="alga-emoji">🍙</span><strong>Con alga</strong></label>
+      <div class="custom-section"><h3>1. ¿Cómo prefieres tu rollo?</h3>
+        <div class="alga-choices">
+          <label class="alga-option"><input type="radio" name="algaChoice" value="sin"><span class="alga-emoji">🍚</span><strong>Sin alga</strong></label>
+          <label class="alga-option"><input type="radio" name="algaChoice" value="con"><span class="alga-emoji">🍙</span><strong>Con alga</strong></label>
+        </div>
       </div>
-      <button type="button" class="btn btn-primary" id="algaConfirm" disabled>Confirmar y agregar</button>
-      <button type="button" class="alga-cancel" id="algaCancel">Cancelar</button>
+      <div class="custom-section"><h3>2. Cambia la proteína <small>Opcional · se retira la original</small></h3>
+        <select id="proteinReplace" class="custom-select">
+          <option value="">Conservar la proteína original · +$0</option>
+          <option value="pollo">Cambiar por pollo · +$25</option>
+          <option value="arrachera">Cambiar por arrachera · +$30</option>
+          <option value="camaron">Cambiar por camarón · +$35</option>
+          <option value="kanikama">Cambiar por kanikama · +$35</option>
+        </select>
+      </div>
+      <div class="custom-section"><h3>3. Agrega más proteína <small>Opcional · puedes elegir varias</small></h3>
+        <div class="custom-options">
+          <label><input type="checkbox" name="proteinAdd" value="pollo"><span>Pollo</span><b>+$25</b></label>
+          <label><input type="checkbox" name="proteinAdd" value="arrachera"><span>Arrachera</span><b>+$30</b></label>
+          <label><input type="checkbox" name="proteinAdd" value="camaron"><span>Camarón</span><b>+$35</b></label>
+          <label><input type="checkbox" name="proteinAdd" value="kanikama"><span>Kanikama</span><b>+$35</b></label>
+        </div>
+      </div>
+      <div class="custom-section"><h3>4. Dale el toque final <small>Toppings opcionales</small></h3>
+        <div class="custom-options">
+          <label><input type="checkbox" name="rollTopping" value="tampico"><span>Tampico</span><b>+$35</b></label>
+          <label><input type="checkbox" name="rollTopping" value="spicy"><span>Spicy</span><b>+$6</b></label>
+        </div>
+      </div>
+      <div class="custom-bottom"><span>Total de tu rollo <strong id="customTotal">$0</strong></span>
+        <button type="button" class="btn btn-primary" id="algaConfirm" disabled>Agregar y seguir eligiendo 🍣</button>
+        <button type="button" class="alga-cancel" id="algaCancel">Cancelar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -171,12 +198,12 @@
 <script src="js/services/gradient-service.js"></script>
 <script src="js/services/catalog-service.js?v=alga-key-fix-4"></script>
 <script src="js/services/menu-options-service.js?v=2"></script>
-<script src="js/services/cart-service.js?v=alga-key-fix-4"></script>
+<script src="js/services/cart-service.js?v=personaliza-7"></script>
 <script src="js/services/loyalty-service.js?v=visitas-nube-1"></script>
 <script src="js/services/order-service.js?v=pedidos-seguros-1"></script>
 <script src="js/services/checkout-service.js"></script>
 <script src="js/viewmodels/catalog-vm.js"></script>
-<script src="js/viewmodels/cart-vm.js"></script>
+<script src="js/viewmodels/cart-vm.js?v=personaliza-7"></script>
 <script src="js/viewmodels/loyalty-vm.js?v=visitas-nube-1"></script>
 <script src="js/viewmodels/checkout-vm.js?v=visitas-nube-1"></script>
 <script src="js/viewmodels/package-vm.js"></script>
@@ -184,7 +211,7 @@
 <script src="js/views/drawer-view.js?v=alga-carrito-2"></script>
 <script src="js/views/checkout-view.js?v=domicilio-recoger-2"></script>
 <script src="js/views/sheet-view.js?v=package-groups-1"></script>
-<script src="js/views/app-view.js?v=seguir-comprando-6"></script>
+<script src="js/views/app-view.js?v=personaliza-7"></script>
 <script src="js/main.js?v=seguir-comprando-6"></script>
 </body>
 </html>
