@@ -76,7 +76,7 @@
         if (!selected) return;
         close();
         this.cart.changeQty(key + "|alga=" + selected.value, 1);
-        this.openDrawer();
+        // Mantener al cliente en el menú para que pueda seguir agregando platillos.
       };
     }
 
