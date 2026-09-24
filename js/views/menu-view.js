@@ -19,7 +19,8 @@
       onQty: null,          // (key, delta)
       onVariant: null,      // (ci, ii, item)
       onPkg: null,          // (ci, ii, item)
-      onRemovePkg: null     // (ci, ii)
+      onRemovePkg: null,    // (ci, ii)
+      onAlga: null          // (key, item)
     };
     this.activeCat = FEATURED;
     this.nav = null;
@@ -262,6 +263,14 @@
         badge.className = "soldout";
         badge.textContent = "No disponible";
         area.appendChild(badge);
+        return;
+      }
+      const isSushi = /^Rollos\b/i.test(item.category || this.catalog.categoryName?.(ci) || this.catalog.categories[ci] || "");
+      if (isSushi && !item.variants) {
+        const b = document.createElement("button");
+        b.className = "add-btn variant"; b.textContent = "Elegir";
+        b.onclick = e => { e.stopPropagation(); this.hooks.onAlga && this.hooks.onAlga(key, item); };
+        area.appendChild(b);
         return;
       }
       if (qty > 0) {
