@@ -466,3 +466,6 @@ footer .card-link { color: #7e6240; border-color: rgba(198,161,91,.75); backgrou
 .alga-cancel{width:100%;padding:13px;border:1px solid #e9bfd0;background:white;color:#9e1c52;border-radius:14px;font-size:15px;font-weight:800}
 
 .cl-alga{display:block;margin-top:6px;width:max-content;max-width:100%;padding:5px 9px;border-radius:9px;background:#fff0f6;border:1px solid #eab4ca;color:#9e1c52;font-size:12px;font-weight:800;line-height:1.4}
+
+/* La ventana debe desaparecer al confirmar para permitir usar el carrito. */
+.alga-backdrop.hidden{display:none!important}
