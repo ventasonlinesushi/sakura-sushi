@@ -38,6 +38,12 @@
       this._emit();
     }
 
+    addCustomized(key, name, price, detail) {
+      this.cart = this._service.addCustomized(this.cart, key, name, price, detail);
+      this._persist();
+      this._emit();
+    }
+
     add(key) {
       this.changeQty(key, 1);
     }
