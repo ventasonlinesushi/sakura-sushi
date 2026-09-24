@@ -446,3 +446,21 @@ footer .card-link { color: #7e6240; border-color: rgba(198,161,91,.75); backgrou
 .business-status{display:inline-flex;align-items:center;justify-content:center;margin:8px auto 3px;padding:7px 13px;border-radius:999px;background:#ffffff17;border:1px solid #ffffff2b;color:#fff;font-size:12px;font-weight:800}
 .business-status.open{background:#123d2d;border-color:#45c78c;color:#d9ffec}
 .business-status.closed{background:#4b2026;border-color:#d99b75;color:#ffe7d6}
+
+/* Selector visual de alga, exclusivo de rollos individuales. */
+.alga-backdrop{position:fixed;inset:0;z-index:110;background:rgba(17,13,17,.72);display:flex;align-items:center;justify-content:center;padding:18px}
+.alga-card{width:min(100%,440px);max-height:92dvh;overflow:auto;border-radius:26px;background:#fff;box-shadow:0 25px 75px #0005}
+.alga-banner{height:105px;background:linear-gradient(130deg,#27151f,#d63777);color:white;display:flex;align-items:center;justify-content:center;gap:12px;font-size:48px}
+.alga-banner span{font-size:17px;letter-spacing:2px;font-weight:800}
+.alga-content{padding:22px;text-align:center}
+.alga-content h2{margin:0;font-size:25px;color:#21171b}
+.alga-content p{margin:8px 0 20px;color:#76636b;font-weight:700}
+.alga-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.alga-option{cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:155px;border:2px solid #e8dce2;border-radius:20px;padding:14px 8px;background:#fff;color:#251b20}
+.alga-option:has(input:checked){border-color:#df2770;background:#fff0f6;box-shadow:0 0 0 2px #fbd4e4}
+.alga-option input{accent-color:#d9256c;width:20px;height:20px;order:2}
+.alga-option strong{font-size:17px;order:1}
+.alga-emoji{font-size:45px}
+.alga-content .btn{width:100%;margin-bottom:10px}
+.alga-content .btn:disabled{opacity:.5;cursor:not-allowed}
+.alga-cancel{width:100%;padding:13px;border:1px solid #e9bfd0;background:white;color:#9e1c52;border-radius:14px;font-size:15px;font-weight:800}
