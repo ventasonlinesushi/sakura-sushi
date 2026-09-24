@@ -48,7 +48,8 @@
   <div class="drawer-body" id="drawerBody"></div>
   <div class="drawer-foot" id="drawerFoot">
     <div class="total-row"><span>Total</span><span id="drawerTotal">$0</span></div>
-    <button class="btn btn-primary" onclick="goCheckout()">Continuar</button>
+    <button type="button" class="btn btn-primary" onclick="continueShopping()">＋ Seguir agregando productos</button>
+    <button type="button" class="btn btn-green" onclick="goCheckout()">Finalizar pedido</button>
   </div>
 </div>
 
@@ -84,7 +85,7 @@
 </div>
 
 <div class="checkout hidden" id="checkout">
-  <button class="back-link" onclick="goBack()">← Volver al menú</button>
+  <button class="back-link" onclick="continueShopping()">← Seguir agregando productos</button>
   <h2>Datos de tu pedido</h2>
 
   <div class="field">
@@ -183,7 +184,7 @@
 <script src="js/views/drawer-view.js?v=alga-carrito-2"></script>
 <script src="js/views/checkout-view.js?v=domicilio-recoger-2"></script>
 <script src="js/views/sheet-view.js?v=package-groups-1"></script>
-<script src="js/views/app-view.js?v=seguir-comprando-5"></script>
-<script src="js/main.js?v=business-hours-1"></script>
+<script src="js/views/app-view.js?v=seguir-comprando-6"></script>
+<script src="js/main.js?v=seguir-comprando-6"></script>
 </body>
 </html>
