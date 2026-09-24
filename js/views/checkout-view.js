@@ -40,11 +40,13 @@
     }
 
     setType(t) {
-      this.orderType = "domicilio";
-      if (this.e.optLlevar) this.e.optLlevar.classList.remove("active");
-      if (this.e.optDomicilio) this.e.optDomicilio.classList.add("active");
-      this.e.fieldAddress.classList.remove("hidden");
-      this.e.deliveryNote.classList.remove("hidden");
+      this.orderType = t === "llevar" ? "llevar" : "domicilio";
+      const recoger = this.orderType === "llevar";
+      this.e.optLlevar.classList.toggle("active", recoger);
+      this.e.optDomicilio.classList.toggle("active", !recoger);
+      this.e.fieldAddress.classList.toggle("hidden", recoger);
+      this.e.deliveryNote.classList.toggle("hidden", recoger);
+      // La dirección nunca se envía ni se exige para pedidos a recoger.
     }
 
     setPayment(p) {
