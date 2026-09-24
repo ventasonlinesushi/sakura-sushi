@@ -76,7 +76,12 @@
         if (!selected) return;
         close();
         this.cart.changeQty(key + "|alga=" + selected.value, 1);
-        // Mantener al cliente en el menú para que pueda seguir agregando platillos.
+        // Nunca abrir carrito ni pago al agregar un rollo.
+        this.closeDrawer();
+        this.el.checkout.classList.add("hidden");
+        this.el.menu.classList.remove("hidden");
+        this.el.cats.classList.remove("hidden");
+        this.refreshFloat();
       };
     }
 
