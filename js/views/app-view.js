@@ -64,19 +64,44 @@
       const name = document.getElementById("algaProduct");
       const confirm = document.getElementById("algaConfirm");
       const choices = Array.from(modal.querySelectorAll('input[name="algaChoice"]'));
+      const replace = document.getElementById("proteinReplace");
+      const additions = Array.from(modal.querySelectorAll('input[name="proteinAdd"]'));
+      const toppings = Array.from(modal.querySelectorAll('input[name="rollTopping"]'));
+      const total = document.getElementById("customTotal");
+      const base = Number(item.price) || 0;
+      const prices = { pollo:25, arrachera:30, camaron:35, kanikama:35, tampico:35, spicy:6 };
+      const labels = { pollo:"Pollo", arrachera:"Arrachera", camaron:"Camarón", kanikama:"Kanikama", tampico:"Tampico", spicy:"Spicy" };
       name.textContent = item.name;
       choices.forEach(c => { c.checked = false; });
-      confirm.disabled = true;
+      replace.value = "";
+      additions.concat(toppings).forEach(c => { c.checked = false; });
+      const recalc = () => {
+        const chosen = choices.find(c => c.checked);
+        const extra = (replace.value ? prices[replace.value] : 0) +
+          additions.concat(toppings).filter(c => c.checked).reduce((sum,c) => sum + prices[c.value],0);
+        total.textContent = "$" + (base + extra).toLocaleString("es-MX");
+        confirm.disabled = !chosen;
+      };
+      choices.forEach(c => { c.onchange = recalc; });
+      replace.onchange = recalc;
+      additions.concat(toppings).forEach(c => { c.onchange = recalc; });
+      recalc();
       modal.classList.remove("hidden");
-      const close = () => { modal.classList.add("hidden"); };
-      choices.forEach(c => { c.onchange = () => { confirm.disabled = false; }; });
-      document.getElementById("algaCancel").onclick = close;
+      document.getElementById("algaCancel").onclick = () => modal.classList.add("hidden");
       confirm.onclick = () => {
         const selected = choices.find(c => c.checked);
         if (!selected) return;
-        close();
-        this.cart.changeQty(key + "|alga=" + selected.value, 1);
-        // Nunca abrir carrito ni pago al agregar un rollo.
+        const details = [selected.value === "sin" ? "SIN ALGA" : "CON ALGA"];
+        if (replace.value) details.push("CAMBIAR PROTEÍNA POR " + labels[replace.value].toUpperCase() + " +$" + prices[replace.value]);
+        additions.filter(c => c.checked).forEach(c => details.push("AGREGAR PROTEÍNA " + labels[c.value].toUpperCase() + " +$" + prices[c.value]));
+        toppings.filter(c => c.checked).forEach(c => details.push("AGREGAR TOPPING " + labels[c.value].toUpperCase() + " +$" + prices[c.value]));
+        const extra = (replace.value ? prices[replace.value] : 0) +
+          additions.concat(toppings).filter(c => c.checked).reduce((sum,c) => sum + prices[c.value],0);
+        const detail = details.join(" | ");
+        const customKey = key + "|alga=" + selected.value + "|custom=" + [replace.value, additions.filter(c=>c.checked).map(c=>c.value).join("+"), toppings.filter(c=>c.checked).map(c=>c.value).join("+")].join("~");
+        const displayName = item.name + " · " + details.join(" · ");
+        this.cart.addCustomized(customKey, displayName, base + extra, detail);
+        modal.classList.add("hidden");
         this.closeDrawer();
         this.el.checkout.classList.add("hidden");
         this.el.menu.classList.remove("hidden");
