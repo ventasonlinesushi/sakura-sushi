@@ -123,7 +123,20 @@
         this.onSent && this.onSent();
       } catch (error) {
         if (popup) popup.close();
-        alert("No pudimos registrar tu pedido. Revisa tu conexión e inténtalo nuevamente; no se abrió WhatsApp para evitar perderlo.");
+        // El registro en el POS puede fallar aunque WhatsApp funcione.
+        // No afirmamos que el pedido llegó al restaurante: el cliente decide
+        // si quiere enviarlo por WhatsApp como alternativa manual.
+        const sendManually = confirm(
+          "No pudimos confirmar que tu pedido se registró en el restaurante. " +
+          "Puedes enviarlo por WhatsApp para que el personal lo confirme manualmente. " +
+          "Si ya habías intentado enviarlo, verifica con el restaurante para evitar duplicados.\\n\\n" +
+          "¿Quieres abrir WhatsApp con tu pedido?"
+        );
+        if (sendManually) {
+          const manual = this.checkout.orderData(this.cart.items, this.loyalty.line(), form);
+          // Navegación en la misma pestaña: funciona incluso si se bloquean ventanas emergentes.
+          window.location.href = manual.url;
+        }
       }
     }
   }
