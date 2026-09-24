@@ -51,7 +51,14 @@
       top.className = "cl-top";
       const n = document.createElement("div");
       n.className = "cl-name";
-      n.textContent = c.name;
+      const alga = c.key.includes("|alga=sin") ? "Sin alga" : c.key.includes("|alga=con") ? "Con alga" : "";
+      n.textContent = alga ? c.name.replace(/\\s*\\[(Sin|Con) alga\\]$/i, "") : c.name;
+      if (alga) {
+        const detail = document.createElement("div");
+        detail.className = "cl-alga";
+        detail.textContent = "🍣 " + alga;
+        n.appendChild(detail);
+      }
       const sub = document.createElement("div");
       sub.className = "cl-sub";
       sub.textContent = this.currency.format(c.price * c.qty);
