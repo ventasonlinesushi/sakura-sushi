@@ -116,6 +116,7 @@
     global.closeDrawer = () => app.closeDrawer();
     global.clearCart = () => app.clearCart();
     global.goCheckout = () => app.goCheckout();
+    global.continueShopping = () => app.continueShopping();
     global.goBack = () => app.goBack();
     global.editOrder = () => app.editOrder();
     global.confirmVariant = () => app.sheets.confirmVariant();
