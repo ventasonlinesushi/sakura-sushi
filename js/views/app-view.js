@@ -35,6 +35,7 @@
       this.sheets.cache();
 
       this.menu.hooks.onQty = (key, delta) => this.cart.changeQty(key, delta);
+      this.menu.hooks.onAlga = (key, item) => this.openAlga(key, item);
       this.menu.hooks.onVariant = (ci, ii, item) => this.sheets.openVariant(ci, ii, item);
       this.menu.hooks.onPkg = (ci, ii, item) => this.sheets.openPkg(ci, ii, item);
       this.menu.hooks.onRemovePkg = (ci, ii) => this.cart.removeOnePackage(ci, ii);
@@ -56,6 +57,26 @@
       this.menu.renderChips();
       this.menu.renderMenu();
       this.refreshFloat();
+    }
+
+    openAlga(key, item) {
+      const modal = document.getElementById("algaModal");
+      const name = document.getElementById("algaProduct");
+      const confirm = document.getElementById("algaConfirm");
+      const choices = Array.from(modal.querySelectorAll('input[name="algaChoice"]'));
+      name.textContent = item.name;
+      choices.forEach(c => { c.checked = false; });
+      confirm.disabled = true;
+      modal.classList.remove("hidden");
+      const close = () => { modal.classList.add("hidden"); };
+      choices.forEach(c => { c.onchange = () => { confirm.disabled = false; }; });
+      document.getElementById("algaCancel").onclick = close;
+      confirm.onclick = () => {
+        const selected = choices.find(c => c.checked);
+        if (!selected) return;
+        close();
+        this.cart.changeQty(key + "|alga=" + selected.value, 1);
+      };
     }
 
     openDrawer() {
