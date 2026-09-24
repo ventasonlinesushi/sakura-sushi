@@ -34,7 +34,8 @@
       if (!entry) {
         const baseName = this._catalog.cartItemName(item, info.variant);
         const basePrice = this._catalog.getPrice(item, info.variant);
-        const chosen = global.PosApp.MenuOptions ? global.PosApp.MenuOptions.choose(item, baseName, basePrice) : { name: baseName, price: basePrice };
+        const alga = key.includes("|alga=sin") ? "Sin alga" : key.includes("|alga=con") ? "Con alga" : "";
+        const chosen = alga ? { name: baseName + " [" + alga + "]", price: basePrice } : (global.PosApp.MenuOptions ? global.PosApp.MenuOptions.choose(item, baseName, basePrice) : { name: baseName, price: basePrice });
         if (!chosen) return result;
         result.push(global.PosApp.CartItem.create(
           key,
