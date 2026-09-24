@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=package-groups-1">
+<link rel="stylesheet" href="style.css?v=alga-visual-1">
 </head>
 <body>
 
@@ -65,6 +65,22 @@
   <div id="pkgOptions"></div>
   <div class="pkg-count" id="pkgCount">Seleccionados: 0 de 2</div>
   <button class="btn btn-primary" id="pkgAdd" onclick="confirmPackage()" disabled>Agregar</button>
+</div>
+
+<div class="alga-backdrop hidden" id="algaModal" role="dialog" aria-modal="true" aria-labelledby="algaTitle">
+  <div class="alga-card">
+    <div class="alga-banner">🍣 <span>SAKURA SUSHI</span></div>
+    <div class="alga-content">
+      <h2 id="algaTitle">¿Cómo lo prefieres?</h2>
+      <p id="algaProduct"></p>
+      <div class="alga-choices">
+        <label class="alga-option"><input type="radio" name="algaChoice" value="sin"><span class="alga-emoji">🍚</span><strong>Sin alga</strong></label>
+        <label class="alga-option"><input type="radio" name="algaChoice" value="con"><span class="alga-emoji">🍙</span><strong>Con alga</strong></label>
+      </div>
+      <button type="button" class="btn btn-primary" id="algaConfirm" disabled>Confirmar y agregar</button>
+      <button type="button" class="alga-cancel" id="algaCancel">Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <div class="checkout hidden" id="checkout">
@@ -154,7 +170,7 @@
 <script src="js/services/gradient-service.js"></script>
 <script src="js/services/catalog-service.js"></script>
 <script src="js/services/menu-options-service.js?v=2"></script>
-<script src="js/services/cart-service.js?v=package-groups-1"></script>
+<script src="js/services/cart-service.js?v=alga-visual-1"></script>
 <script src="js/services/loyalty-service.js?v=visitas-nube-1"></script>
 <script src="js/services/order-service.js?v=pedidos-seguros-1"></script>
 <script src="js/services/checkout-service.js"></script>
@@ -163,11 +179,11 @@
 <script src="js/viewmodels/loyalty-vm.js?v=visitas-nube-1"></script>
 <script src="js/viewmodels/checkout-vm.js?v=visitas-nube-1"></script>
 <script src="js/viewmodels/package-vm.js"></script>
-<script src="js/views/menu-view.js?v=product-images-1"></script>
+<script src="js/views/menu-view.js?v=alga-visual-1"></script>
 <script src="js/views/drawer-view.js"></script>
 <script src="js/views/checkout-view.js?v=domicilio-recoger-2"></script>
 <script src="js/views/sheet-view.js?v=package-groups-1"></script>
-<script src="js/views/app-view.js"></script>
+<script src="js/views/app-view.js?v=alga-visual-1"></script>
 <script src="js/main.js?v=business-hours-1"></script>
 </body>
 </html>
