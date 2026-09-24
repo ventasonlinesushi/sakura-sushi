@@ -15,7 +15,8 @@
       try {
         return (cart || []).filter(e => {
           if (!e || typeof e.key !== "string") return false;
-          const clean = e.key.indexOf("pkg:") === 0 ? e.key.slice(4) : e.key;
+          const withoutAlga = e.key.split("|alga=")[0];
+          const clean = withoutAlga.indexOf("pkg:") === 0 ? withoutAlga.slice(4) : withoutAlga;
           const parts = clean.split(":");
           const item = this._catalog.getItem(+parts[0], +parts[1]);
           return !!item && item.available !== false;
