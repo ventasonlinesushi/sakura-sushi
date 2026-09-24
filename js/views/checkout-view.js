@@ -112,17 +112,17 @@
       const form = this._form();
       if (!form) return;
       const data = this.checkout.orderData(this.cart.items, this.loyalty.line(), form);
-      const popup = window.open("about:blank", "_blank");
       try {
         const record = await this.checkout.recordOrder(data, form, this.cart.items);
         if (record.loyalty) this.loyalty.syncFromServer(record.loyalty);
         const loyaltyLine = record.loyalty ? this.loyalty.registeredLine(record.loyalty) : this.loyalty.line();
         const confirmed = this.checkout.orderData(this.cart.items, loyaltyLine, form, record.folio);
-        if (popup) popup.location.href = confirmed.url; else window.location.href = confirmed.url;
         if (!record.loyalty) this.loyalty.registerVisit();
         this.onSent && this.onSent();
+        // Abrir WhatsApp en la pestaña actual evita ventanas vacías/bloqueadas
+        // en navegadores móviles, incluidos pedidos para recoger.
+        window.location.assign(confirmed.url);
       } catch (error) {
-        if (popup) popup.close();
         // El registro en el POS puede fallar aunque WhatsApp funcione.
         // No afirmamos que el pedido llegó al restaurante: el cliente decide
         // si quiere enviarlo por WhatsApp como alternativa manual.
