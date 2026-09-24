@@ -31,7 +31,8 @@
     }
 
     findItem(key) {
-      const clean = key.indexOf("pkg:") === 0 ? key.slice(4) : key;
+      const withoutAlga = key.split("|alga=")[0];
+      const clean = withoutAlga.indexOf("pkg:") === 0 ? withoutAlga.slice(4) : withoutAlga;
       const parts = clean.split(":");
       const cat = +parts[0];
       const item = +parts[1];
