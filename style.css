@@ -469,3 +469,25 @@ footer .card-link { color: #7e6240; border-color: rgba(198,161,91,.75); backgrou
 
 /* La ventana debe desaparecer al confirmar para permitir usar el carrito. */
 .alga-backdrop.hidden{display:none!important}
+
+/* Personalizador de rollos: tarjeta móvil con resumen siempre visible */
+.custom-card { width:min(520px,calc(100vw - 20px)); max-height:min(92dvh,850px); display:flex; flex-direction:column; overflow:hidden; border-radius:24px; background:#fff; box-shadow:0 22px 65px rgba(24,7,18,.35); }
+.custom-card .alga-content { overflow-y:auto; overscroll-behavior:contain; padding:18px 18px 0; }
+.custom-card #algaTitle { margin:0 0 4px; font-size:24px; color:#321322; }
+.custom-card #algaProduct { margin:0 0 15px; font-weight:800; color:#b2215c; }
+.custom-section { padding:14px 0; border-top:1px solid #f3e5eb; }
+.custom-section h3 { margin:0 0 12px; font-size:15px; font-weight:800; color:#2c1721; }
+.custom-section h3 small { display:block; margin-top:4px; font-size:11px; font-weight:600; color:#8b7480; }
+.custom-select { width:100%; padding:13px 10px; border:1.5px solid #e9c7d6; border-radius:12px; font:600 13px Manrope,Arial,sans-serif; background:#fff7fa; color:#3a1728; }
+.custom-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.custom-options label { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:12px 9px; background:#fff8fb; border:1.5px solid #f2d9e4; border-radius:13px; font-size:12px; font-weight:750; cursor:pointer; }
+.custom-options label:has(input:checked) { background:#ffe8f1; border-color:#e8367c; box-shadow:0 2px 9px rgba(232,54,124,.12); }
+.custom-options input { accent-color:#d52970; width:17px; height:17px; margin:0; }
+.custom-options span { flex:1; }
+.custom-options b { color:#b2215c; white-space:nowrap; }
+.custom-bottom { position:sticky; bottom:0; z-index:2; background:#fff; border-top:1px solid #f3e5eb; padding:12px 0 max(12px,env(safe-area-inset-bottom)); box-shadow:0 -8px 18px rgba(255,255,255,.95); }
+.custom-bottom>span { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; margin-bottom:9px; }
+.custom-bottom strong { font-size:24px; color:#c41f62; }
+.custom-bottom .btn { padding:13px; font-size:14px; }
+.custom-bottom .alga-cancel { margin-top:6px; }
+@media(max-width:370px) { .custom-options { grid-template-columns:1fr; } }
