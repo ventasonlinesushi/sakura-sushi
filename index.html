@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=alga-carrito-fix-3">
+<link rel="stylesheet" href="style.css?v=salsas-alga-paquetes-1">
 </head>
 <body>
 
@@ -160,9 +160,15 @@
     <label>Cambios a tu platillo (opcional)</label>
     <textarea id="fNotes" placeholder="Escribe el nombre del platillo y el cambio que le quieres hacer. Ej: Dragon sin cebollín / Okinawa extra queso"></textarea>
   </div>
-  <div class="field">
-    <label>Comentario para tus salsas (opcional)</label>
-    <input type="text" id="fSalsas" placeholder="Ej. poca salsa picante, salsa extra">
+  <div class="field sauce-field">
+    <label>Elige los acompañamientos para cada platillo</label>
+    <div class="sauce-rule">Puedes escoger <b>hasta 2 opciones</b> por cada sushi, yakimeshi o gohan. También aplica a los productos incluidos en paquetes.</div>
+    <div id="sauceSelector"></div>
+  </div>
+  <div class="field sauce-field alga-field">
+    <label>Presentación de los rollos incluidos en paquetes</label>
+    <div class="sauce-rule">Selecciona <b>Con alga</b> o <b>Sin alga</b> para cada sushi del paquete, incluso cuando el rollo se repita.</div>
+    <div id="algaSelector"></div>
   </div>
   <div class="field">
     <label>¿Gustas palitos para comer sushi?</label>
@@ -196,20 +202,20 @@
 <script src="js/repositories/order-repository.js"></script>
 <script src="js/services/currency-service.js"></script>
 <script src="js/services/gradient-service.js"></script>
-<script src="js/services/catalog-service.js?v=alga-key-fix-4"></script>
+<script src="js/services/catalog-service.js?v=salsas-alga-paquetes-1"></script>
 <script src="js/services/menu-options-service.js?v=2"></script>
-<script src="js/services/cart-service.js?v=personaliza-7"></script>
+<script src="js/services/cart-service.js?v=salsas-alga-paquetes-1"></script>
 <script src="js/services/loyalty-service.js?v=visitas-nube-1"></script>
-<script src="js/services/order-service.js?v=pedidos-seguros-1"></script>
-<script src="js/services/checkout-service.js"></script>
+<script src="js/services/order-service.js?v=salsas-alga-paquetes-1"></script>
+<script src="js/services/checkout-service.js?v=salsas-alga-paquetes-1"></script>
 <script src="js/viewmodels/catalog-vm.js"></script>
 <script src="js/viewmodels/cart-vm.js?v=personaliza-7"></script>
 <script src="js/viewmodels/loyalty-vm.js?v=visitas-nube-1"></script>
-<script src="js/viewmodels/checkout-vm.js?v=visitas-nube-1"></script>
+<script src="js/viewmodels/checkout-vm.js?v=salsas-alga-paquetes-1"></script>
 <script src="js/viewmodels/package-vm.js"></script>
 <script src="js/views/menu-view.js?v=alga-visual-1"></script>
 <script src="js/views/drawer-view.js?v=alga-carrito-2"></script>
-<script src="js/views/checkout-view.js?v=domicilio-recoger-2"></script>
+<script src="js/views/checkout-view.js?v=salsas-alga-paquetes-1"></script>
 <script src="js/views/sheet-view.js?v=package-groups-1"></script>
 <script src="js/views/app-view.js?v=personaliza-7"></script>
 <script src="js/main.js?v=seguir-comprando-6"></script>

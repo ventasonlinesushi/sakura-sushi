@@ -26,7 +26,7 @@ Deno.serve(async (request) => {
   let body: Record<string, any>;
   try { body = await request.json(); } catch { return send({ error: "JSON inválido" }, 400); }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-  if (body.action === "health") return send({ ok: true, version: "1.2.0" });
+  if (body.action === "health") return send({ ok: true, version: "1.2.1" });
 
   if (body.action === "public.submit") {
     const marca = clean(body.marca, 20).toLowerCase();
@@ -35,8 +35,10 @@ Deno.serve(async (request) => {
     if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 80) return send({ error: "El pedido no contiene productos válidos" }, 400);
     const phone = normalizePhone(body.phone);
     if (phone.length !== 10) return send({ error: "Escribe un teléfono válido de 10 dígitos" }, 400);
-    const address = clean(body.address, 500);
-    if (address.length < 5) return send({ error: "Escribe la dirección de entrega" }, 400);
+    const orderType = clean(body.order_type, 30).toLowerCase();
+    if (!["domicilio", "llevar"].includes(orderType)) return send({ error: "Selecciona domicilio o recoger en restaurante" }, 400);
+    const address = orderType === "domicilio" ? clean(body.address, 500) : "";
+    if (orderType === "domicilio" && address.length < 5) return send({ error: "Escribe la dirección de entrega" }, 400);
     const payment = clean(body.payment, 50).toLowerCase().includes("transf") ? "Transferencia" : "Efectivo";
     const items = body.items.map((item: any) => ({
       key: clean(item.key, 100), name: clean(item.name, 180), qty: Math.max(1, Math.min(99, Number(item.qty) || 1)),
@@ -49,7 +51,7 @@ Deno.serve(async (request) => {
     if (folioError) return send({ error: "No se pudo generar el folio" }, 500);
     const folio = String(next).padStart(4, "0");
     const customerName = clean(body.name, 150);
-    const row = { folio, name: customerName, phone, order_type: "domicilio", address, payment, notes: clean(body.notes, 1000), salsas: clean(body.salsas, 200), palitos: clean(body.palitos, 100), items, total, status: "nuevo", payment_status: "pendiente", marca };
+    const row = { folio, name: customerName, phone, order_type: orderType, address, payment, notes: clean(body.notes, 1000), salsas: clean(body.salsas, 3000), palitos: clean(body.palitos, 100), items, total, status: "nuevo", payment_status: "pendiente", marca };
     const { data, error } = await db.from("orders").insert(row).select("id,folio,created_at,total,status,marca").single();
     if (error) return send({ error: "No se pudo registrar el pedido" }, 500);
     const { data: loyaltyRows, error: loyaltyError } = await db.rpc("register_loyalty_visit", { p_marca: marca, p_phone: phone, p_name: customerName });

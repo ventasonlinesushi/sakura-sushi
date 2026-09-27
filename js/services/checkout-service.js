@@ -39,6 +39,7 @@
       }
       L.push("");
       L.push("*Salsas:* " + (options.salsas || "Sin comentario"));
+      if (options.alga) L.push("*Presentación de los rollos del paquete:* " + options.alga);
       L.push("*Palitos:* " + (options.palitos === "Si" ? "Sí" : "No"));
       if (options.orderType === "domicilio") {
         L.push("");

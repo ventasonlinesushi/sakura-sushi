@@ -31,6 +31,7 @@
         loyaltyLine,
         notes: form.notes,
         salsas: form.salsas,
+        alga: form.alga,
         palitos: form.palitos,
         folio: this._orders.folioText(folio)
       };
@@ -50,6 +51,7 @@
         payment: form.payment,
         notes: form.notes,
         salsas: form.salsas,
+        alga: form.alga,
         palitos: form.palitos,
         marca: this._brand.marca,
         cart,

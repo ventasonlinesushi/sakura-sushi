@@ -25,6 +25,7 @@
         payment: fields.payment,
         notes: fields.notes || "",
         salsas: fields.salsas || "",
+        alga: fields.alga || "",
         palitos: fields.palitos || "",
         marca: fields.marca || "",
         items: (fields.cart || []).map(c => ({
@@ -33,6 +34,8 @@
           qty: c.qty,
           price: c.price,
           desc: c.desc || "",
+          sauce_targets: c.sauce_targets || [],
+          alga_targets: c.alga_targets || [],
           package_detail: c.package_detail || null
         })),
         total: fields.total
@@ -86,7 +89,7 @@
           address: record.address,
           payment: record.payment,
           notes: record.notes || "",
-          salsas: record.salsas || "",
+          salsas: (record.salsas || "") + (record.alga ? " | Presentación de los rollos del paquete: " + record.alga : ""),
           palitos: record.palitos || "",
           marca: record.marca || "",
           items: record.items,

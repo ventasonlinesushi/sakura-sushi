@@ -467,6 +467,17 @@ footer .card-link { color: #7e6240; border-color: rgba(198,161,91,.75); backgrou
 
 .cl-alga{display:block;margin-top:6px;width:max-content;max-width:100%;padding:5px 9px;border-radius:9px;background:#fff0f6;border:1px solid #eab4ca;color:#9e1c52;font-size:12px;font-weight:800;line-height:1.4}
 
+.sauce-field{padding:16px;border:1px solid #eadde2;border-radius:18px;background:#fff8fb}
+.sauce-rule{font-size:13px;line-height:1.45;color:var(--muted);margin:6px 0 12px}
+.sauce-card{padding:12px 0;border-top:1px solid #eadde2}
+.sauce-card:first-child{border-top:0}
+.sauce-card>b{display:block;font-size:14px;margin-bottom:8px;color:var(--text)}
+.sauce-options{display:flex;gap:7px;flex-wrap:wrap}
+.sauce-option{border:1.5px solid #d8cbd0;border-radius:999px;background:#fff;padding:8px 11px;font:inherit;font-size:12px;font-weight:800;color:var(--text);cursor:pointer}
+.sauce-option.active{border-color:var(--primary);background:var(--primary);color:#fff}
+.sauce-empty{font-size:13px;color:var(--muted);padding:8px 0}
+.alga-field{background:#fffdf7;border-color:#eadfbd}
+
 /* La ventana debe desaparecer al confirmar para permitir usar el carrito. */
 .alga-backdrop.hidden{display:none!important}
 
